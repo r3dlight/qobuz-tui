@@ -5,6 +5,17 @@ edition = "2024"
 license = "GPL-3.0-only"
 description = "A terminal-based Qobuz music player"
 
+[package.metadata.deb]
+maintainer = "r3dlight"
+section = "sound"
+priority = "optional"
+assets = [
+    ["target/release/qobuz-tui", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/qobuz-tui/", "644"],
+    ["../../LICENSE", "usr/share/doc/qobuz-tui/", "644"],
+]
+depends = "libasound2"
+
 [dependencies]
 qobuz-lib = { path = "../qobuz-lib" }
 ratatui = "0.30"
