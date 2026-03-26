@@ -16,6 +16,8 @@ Browse your Qobuz library, search for music, and play Hi-Res FLAC directly from 
 - **Favorite albums** — Quick access to your Qobuz favorite albums via F2
 - **Play queue** — Automatically queues all tracks when playing from an album or search results
 - **Auto-advance** — Next track plays automatically when the current one finishes
+- **Streaming playback** — Audio plays while still downloading (progressive streaming), no more waiting for full download
+- **Seek** — Skip forward/backward 10 seconds with `,` / `;`
 - **Audio playback** — Play FLAC (up to 24-bit/192kHz), MP3, and other formats via rodio + symphonia, with automatic quality fallback
 - **Album download** — Download an entire album to local cache with `d`
 - **Progress bar** — Real-time playback progress with elapsed/total time
@@ -121,11 +123,12 @@ The search bar is always active — just type your query and press Enter.
 | `n` | Next track in queue |
 | `N` | Previous track in queue |
 | `r` | Cycle loop mode: Off → `LOOP:TRACK` → `LOOP:ALL` → Off |
+| `,` / `;` | Seek backward / forward 10 seconds |
 | `Left` / `Right` | Volume down / up |
 | `Esc` | Quit |
 | `Ctrl+C` | Force quit |
 
-> **Note:** `p`, `n`, `N`, `r`, `f`, `x`, `d` are letter keys used as shortcuts — they type normally on the search and login screens.
+> **Note:** `p`, `n`, `N`, `r`, `f`, `x`, `d`, `,`, `;` are shortcut keys — they type normally on the search and login screens.
 
 ## Configuration
 
@@ -175,7 +178,8 @@ src/
 ├── api.rs       Qobuz API client (auth, search, streaming URLs, favorites)
 ├── player.rs    Audio playback with progress tracking
 ├── cache.rs     Local audio file cache (Artist/Album/Track)
-├── sandbox.rs   Landlock filesystem/network sandbox
+├── stream.rs    Streaming buffer for progressive audio playback
+├── sandbox.rs   Landlock filesystem sandbox
 ├── app.rs       Application state, play queue, input handling
 └── ui.rs        TUI rendering with ratatui
 ```

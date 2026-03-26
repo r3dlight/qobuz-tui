@@ -121,6 +121,10 @@ impl QobuzClient {
         }
     }
 
+    pub fn client(&self) -> &Client {
+        &self.client
+    }
+
     pub fn set_token(&mut self, token: String) {
         self.user_auth_token = Some(token);
     }

@@ -4,6 +4,7 @@ mod cache;
 mod config;
 mod player;
 mod sandbox;
+mod stream;
 mod ui;
 
 use anyhow::Result;

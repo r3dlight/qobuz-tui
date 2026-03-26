@@ -2,6 +2,7 @@ use crate::api::{self, Album, QobuzClient, Track};
 use crate::cache::{AudioCache, TrackMeta};
 use crate::config::Config;
 use crate::player::Player;
+use crate::stream::{self, StreamingBuffer};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
@@ -35,8 +36,9 @@ pub enum AppMessage {
     SearchError(String),
     FavoritesResults(Vec<Album>),
     FavoritesError(String),
-    /// data, title, artist, duration, track_id, album_title, track_number
-    AudioReady(Vec<u8>, String, String, u64, String, String, Option<u32>),
+    /// Streaming buffer ready for playback (progressive download started)
+    StreamReady(StreamingBuffer, String, String, u64), // buffer, title, artist, duration
+    /// Download error
     AudioError(String),
     AlbumLoaded(Album),
     AlbumError(String),
@@ -92,6 +94,7 @@ pub struct App {
 
     // Status
     pub status_message: Option<String>,
+    status_expires: Option<std::time::Instant>,
 
     // API client
     pub api: QobuzClient,
@@ -201,6 +204,7 @@ impl App {
             player,
             cache: AudioCache::new(),
             status_message: None,
+            status_expires: None,
             api,
             config,
             tx,
@@ -262,16 +266,8 @@ impl App {
             AppMessage::FavoritesError(err) => {
                 self.status_message = Some(format!("Favorites error: {}", err));
             }
-            AppMessage::AudioReady(data, title, artist, duration, track_id, album_title, track_num) => {
-                let meta = TrackMeta {
-                    artist: &artist,
-                    album: &album_title,
-                    track_number: track_num,
-                    title: &title,
-                };
-                self.cache.put(&track_id, &data, &meta);
-                self.cache.register(&track_id, &meta);
-                if let Err(e) = self.player.play_audio(data, &title, &artist, duration) {
+            AppMessage::StreamReady(buffer, title, artist, duration) => {
+                if let Err(e) = self.player.play_streaming(buffer, &title, &artist, duration) {
                     self.status_message = Some(format!("Playback error: {}", e));
                 }
             }
@@ -371,6 +367,20 @@ impl App {
                 }
                 KeyCode::Char('r') => {
                     self.loop_mode = self.loop_mode.next();
+                    return;
+                }
+                KeyCode::Char(',') => {
+                    if !self.player.seek_backward(10) {
+                        let err = self.player.last_seek_error().unwrap_or("unknown").to_string();
+                        self.set_temp_status(format!("Seek: {}", err));
+                    }
+                    return;
+                }
+                KeyCode::Char(';') => {
+                    if !self.player.seek_forward(10) {
+                        let err = self.player.last_seek_error().unwrap_or("unknown").to_string();
+                        self.set_temp_status(format!("Seek: {}", err));
+                    }
                     return;
                 }
                 _ => {}
@@ -594,7 +604,7 @@ impl App {
                     if attempt > 0 {
                         tokio::time::sleep(std::time::Duration::from_secs(2 * attempt as u64)).await;
                     }
-                    match get_and_download_track(&api, &track.id, format_id).await {
+                    match download_track(&api, &track.id, format_id).await {
                         Ok(data) => {
                             let meta = TrackMeta {
                                 artist: &album_artist,
@@ -701,24 +711,34 @@ impl App {
         let track_id = track.id.clone();
         let format_id = self.config.format_id();
 
-        // Check cache first
-        if let Some(data) = self.cache.get(&track_id) {
-            if let Err(e) = self.player.play_audio(data, &title, &artist, duration) {
-                self.status_message = Some(format!("Playback error: {}", e));
+        // Check cache first — instant playback (seekable)
+        if self.cache.has(&track_id) {
+            if let Some(data) = self.cache.get(&track_id) {
+                if let Err(e) = self.player.play_audio(data, &title, &artist, duration) {
+                    self.status_message = Some(format!("Playback error: {}", e));
+                }
+                return;
             }
-            return;
         }
 
         self.player.set_loading(&title, &artist);
 
         let tx = self.tx.clone();
         let api = self.api.clone();
+        let cache = self.cache.clone();
+
+        // Stream: get URL, start download, send buffer for immediate playback
         tokio::spawn(async move {
-            match get_and_download_track(&api, &track_id, format_id).await {
+            match stream_track(&api, &track_id, format_id, &tx, &title, &artist, duration).await {
                 Ok(data) => {
-                    tx.send(AppMessage::AudioReady(
-                        data, title, artist, duration, track_id, album_title, track_num,
-                    )).ok();
+                    // Cache the complete data
+                    let meta = TrackMeta {
+                        artist: &artist,
+                        album: &album_title,
+                        track_number: track_num,
+                        title: &title,
+                    };
+                    cache.put(&track_id, &data, &meta);
                 }
                 Err(e) => {
                     tx.send(AppMessage::AudioError(e.to_string())).ok();
@@ -795,7 +815,21 @@ impl App {
         });
     }
 
+    /// Set a temporary status message that auto-clears after 3 seconds.
+    fn set_temp_status(&mut self, msg: String) {
+        self.status_message = Some(msg);
+        self.status_expires = Some(std::time::Instant::now() + std::time::Duration::from_secs(3));
+    }
+
     pub fn tick(&mut self) {
+        // Auto-clear expired status messages
+        if let Some(expires) = self.status_expires
+            && std::time::Instant::now() >= expires
+        {
+            self.status_message = None;
+            self.status_expires = None;
+        }
+
         if self.player.is_finished() {
             match self.loop_mode {
                 LoopMode::Track => {
@@ -845,7 +879,112 @@ pub fn scroll_offset(selected: usize, current_offset: usize, visible_height: usi
 }
 
 /// Download a track, retrying with fresh URLs and falling back to lower quality.
-async fn get_and_download_track(
+/// Stream a track: get URL, start downloading, send a StreamingBuffer for
+/// immediate playback, and return the complete data for caching.
+async fn stream_track(
+    api: &QobuzClient,
+    track_id: &str,
+    preferred_format: u32,
+    tx: &mpsc::UnboundedSender<AppMessage>,
+    title: &str,
+    artist: &str,
+    duration: u64,
+) -> Result<Vec<u8>> {
+    let formats = match preferred_format {
+        27 => &[27, 7, 6, 5][..],
+        7 => &[7, 6, 5][..],
+        6 => &[6, 5][..],
+        _ => &[preferred_format, 5][..],
+    };
+
+    let mut last_err = anyhow::anyhow!("No format available");
+
+    for &fmt in formats {
+        let url = match api.get_track_url(track_id, fmt).await {
+            Ok(u) => u,
+            Err(_) => continue,
+        };
+
+        // Start HTTP request (identity encoding to avoid gzip mangling audio)
+        let resp = match api.client().get(&url)
+            .header("Accept-Encoding", "identity")
+            .send().await
+        {
+            Ok(r) if r.status().is_success() => r,
+            Ok(r) => {
+                last_err = anyhow::anyhow!("HTTP {}", r.status());
+                continue;
+            }
+            Err(e) => {
+                last_err = anyhow::anyhow!("{}", e);
+                continue;
+            }
+        };
+
+        let total_size = resp.content_length().unwrap_or(0);
+        let (writer, buffer) = stream::new_streaming_pair(total_size);
+
+        // Download chunks, send buffer after initial data
+        let mut sent_buffer = false;
+        let mut buffer_opt = Some(buffer);
+        let mut resp = resp;
+        let mut download_ok = true;
+
+        // Initial buffer threshold: 128KB or 10% of file, whichever is smaller
+        let threshold = (total_size / 10).clamp(64 * 1024, 256 * 1024) as usize;
+
+        loop {
+            match resp.chunk().await {
+                Ok(Some(chunk)) => {
+                    writer.write(&chunk);
+                    if !sent_buffer
+                        && writer.downloaded() >= threshold
+                        && let Some(buf) = buffer_opt.take()
+                    {
+                        tx.send(AppMessage::StreamReady(
+                            buf,
+                            title.to_string(),
+                            artist.to_string(),
+                            duration,
+                        ))
+                        .ok();
+                        sent_buffer = true;
+                    }
+                }
+                Ok(None) => break,
+                Err(e) => {
+                    last_err = anyhow::anyhow!("Download: {}", e);
+                    download_ok = false;
+                    break;
+                }
+            }
+        }
+        writer.finish();
+
+        // If file was small, send buffer now (all data already in it)
+        if !sent_buffer
+            && let Some(buf) = buffer_opt.take()
+        {
+            tx.send(AppMessage::StreamReady(
+                buf,
+                title.to_string(),
+                artist.to_string(),
+                duration,
+            ))
+            .ok();
+        }
+
+        if download_ok {
+            return Ok(writer.get_data());
+        }
+        // Download failed midway — try next format
+    }
+
+    Err(last_err)
+}
+
+/// Download a full track (for album batch download, no streaming needed).
+async fn download_track(
     api: &QobuzClient,
     track_id: &str,
     preferred_format: u32,
@@ -860,18 +999,14 @@ async fn get_and_download_track(
     let mut last_err = anyhow::anyhow!("No format available");
 
     for &fmt in formats {
-        // Get a fresh URL for this format
         let url = match api.get_track_url(track_id, fmt).await {
             Ok(u) => u,
-            Err(_) => continue, // format not available, try next
+            Err(_) => continue,
         };
-
-        // Try downloading (download_audio already retries 3 times)
         match api.download_audio(&url).await {
             Ok(data) => return Ok(data),
             Err(e) => {
                 last_err = anyhow::anyhow!("format {}: {}", fmt, e);
-                // Connection issue — try next format (smaller file)
             }
         }
     }
