@@ -60,6 +60,14 @@ sudo pacman -S alsa-lib
 
 You need an active Qobuz account with a streaming subscription. The internal API credentials (`app_id` and `app_secret`) are **fetched automatically** from the Qobuz web player on first launch.
 
+### Rust toolchain
+
+This project uses Rust **edition 2024**, which requires a **nightly** toolchain. The included `rust-toolchain.toml` will automatically select it when you run `cargo build`. To install nightly manually:
+
+```bash
+rustup toolchain install nightly
+```
+
 ## Build
 
 ```bash
