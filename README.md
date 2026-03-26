@@ -8,6 +8,10 @@
 
 Browse your Qobuz library, search for music, and play Hi-Res FLAC directly from your terminal.
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="Screenshot" width="800"/>
+</p>
+
 ## Features
 
 - **Authentication** — Log in with your Qobuz email and password (API credentials are fetched automatically)
