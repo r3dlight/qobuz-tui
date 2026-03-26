@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 r3dlight
 use crate::stream::StreamingBuffer;
 use anyhow::Result;
 use rodio::{Decoder, Sink, Source};

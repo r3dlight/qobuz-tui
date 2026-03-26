@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 r3dlight
 //! Shared streaming buffer for progressive audio playback.
 //!
 //! A `StreamWriter` feeds data from the download task.

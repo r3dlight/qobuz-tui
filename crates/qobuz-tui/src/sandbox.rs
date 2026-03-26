@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 r3dlight
 use landlock::{
     ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr,
     path_beneath_rules,

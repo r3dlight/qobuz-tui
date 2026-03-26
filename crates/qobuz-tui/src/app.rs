@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 r3dlight
 use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;

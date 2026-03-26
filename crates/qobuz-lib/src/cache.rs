@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 r3dlight
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

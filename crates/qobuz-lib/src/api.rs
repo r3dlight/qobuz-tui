@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 r3dlight
 use anyhow::{anyhow, Result};
 use base64::Engine;
 use regex::Regex;
