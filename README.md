@@ -13,8 +13,8 @@ Browse your Qobuz library, search for music, and play Hi-Res FLAC directly from 
 - **Authentication** — Log in with your Qobuz email and password (API credentials are fetched automatically)
 - **Search** — Search for tracks and albums, switch between result types with Tab
 - **Album browsing** — Open any album to see its full tracklist
-- **Favorite albums** — Quick access to your Qobuz favorite albums via F2
-- **Playlists** — Browse and play your Qobuz playlists via F3
+- **Favorite albums** — Browse and manage your Qobuz favorite albums
+- **Playlists** — Browse and play your Qobuz playlists
 - **Play queue** — Automatically queues all tracks when playing from an album, playlist, or search results
 - **Auto-advance** — Next track plays automatically when the current one finishes
 - **Gapless playback** — Next track is pre-downloaded 15 seconds before the current one ends
