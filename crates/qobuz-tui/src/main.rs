@@ -18,6 +18,14 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 fn main() -> Result<()> {
+    // Suppress ALSA diagnostic messages (e.g. snd_pcm_recover) that would
+    // corrupt the TUI display since they write directly to stderr.
+    //
+    // SAFETY: set_var is unsafe in Rust 2024 because it is not thread-safe.
+    // This is called at the very start of main(), before the tokio runtime
+    // or any other threads are created, so no data race is possible.
+    unsafe { std::env::set_var("ALSA_LOG_LEVEL", "0"); }
+
     let (_stream, stream_handle) = OutputStream::try_default()
         .map_err(|e| anyhow::anyhow!("Failed to open audio output: {}", e))?;
     let sink = Sink::try_new(&stream_handle)?;
