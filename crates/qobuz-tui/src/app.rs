@@ -1,8 +1,9 @@
-use crate::api::{self, Album, QobuzClient, Track};
-use crate::cache::{AudioCache, TrackMeta};
-use crate::config::Config;
-use crate::player::Player;
-use crate::stream::{self, StreamingBuffer};
+use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
+use qobuz_lib::cache::{AudioCache, TrackMeta};
+use qobuz_lib::config::Config;
+use qobuz_lib::player::Player;
+use qobuz_lib::session::{self, SessionTrack};
+use qobuz_lib::stream::{self, StreamingBuffer};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
@@ -12,12 +13,14 @@ pub enum Screen {
     Login,
     Main,
     AlbumView,
+    PlaylistView,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Tab {
     Search,
     Favorites,
+    Playlists,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,7 +40,7 @@ pub enum AppMessage {
     FavoritesResults(Vec<Album>),
     FavoritesError(String),
     /// Streaming buffer ready for playback (progressive download started)
-    StreamReady(StreamingBuffer, String, String, u64), // buffer, title, artist, duration
+    StreamReady(StreamingBuffer, String, String, u64),
     /// Download error
     AudioError(String),
     AlbumLoaded(Album),
@@ -45,8 +48,14 @@ pub enum AppMessage {
     DownloadProgress(usize, usize),
     DownloadDone,
     DownloadError(String),
-    FavoriteToggled(String, bool), // album_id, added (true) or removed (false)
+    /// Stream download completed — enable seek on current track
+    StreamCached(Vec<u8>, String), // data, track_id
+    FavoriteToggled(String, bool),
     FavoriteToggleError(String),
+    PlaylistsLoaded(Vec<api::Playlist>),
+    PlaylistsError(String),
+    PlaylistLoaded(api::Playlist),
+    PlaylistError(String),
 }
 
 pub struct App {
@@ -81,13 +90,25 @@ pub struct App {
     pub album_selected: usize,
     pub album_scroll: usize,
 
+    // Playlists
+    pub playlists: Vec<Playlist>,
+    pub playlists_selected: usize,
+    pub playlists_scroll: usize,
+    pub playlists_loaded: bool,
+    pub playlist_tracks: Vec<Track>,
+    pub playlist_name: Option<String>,
+    pub playlist_selected: usize,
+    pub playlist_scroll: usize,
+
     // Play queue
     pub queue: Vec<Track>,
     pub queue_index: usize,
     pub loop_mode: LoopMode,
+    pub next_track_prefetched: bool,
 
     // Player
     pub player: Player,
+
 
     // Cache
     pub cache: AudioCache,
@@ -175,6 +196,17 @@ impl App {
             None
         };
 
+        // Restore session
+        let saved = session::load();
+        let mut player = player;
+        player.set_volume(saved.volume.clamp(0.0, 1.0));
+        let restored_queue: Vec<Track> = saved.queue.iter().map(|t| t.to_track()).collect();
+        let loop_mode = match saved.loop_mode {
+            1 => LoopMode::Track,
+            2 => LoopMode::Queue,
+            _ => LoopMode::Off,
+        };
+
         Self {
             screen,
             should_quit: false,
@@ -198,9 +230,18 @@ impl App {
             album_tracks: Vec::new(),
             album_selected: 0,
             album_scroll: 0,
-            queue: Vec::new(),
-            queue_index: 0,
-            loop_mode: LoopMode::Off,
+            playlists: Vec::new(),
+            playlists_selected: 0,
+            playlists_scroll: 0,
+            playlists_loaded: false,
+            playlist_tracks: Vec::new(),
+            playlist_name: None,
+            playlist_selected: 0,
+            playlist_scroll: 0,
+            queue: restored_queue,
+            queue_index: saved.queue_index,
+            loop_mode,
+            next_track_prefetched: false,
             player,
             cache: AudioCache::new(),
             status_message: None,
@@ -267,8 +308,9 @@ impl App {
                 self.status_message = Some(format!("Favorites error: {}", err));
             }
             AppMessage::StreamReady(buffer, title, artist, duration) => {
-                if let Err(e) = self.player.play_streaming(buffer, &title, &artist, duration) {
-                    self.status_message = Some(format!("Playback error: {}", e));
+                if self.player.play_streaming(buffer, &title, &artist, duration).is_err() {
+                    // Decoder failed on this stream — likely a format fallback in progress.
+                    // Don't show error; the next format attempt will send another StreamReady.
                 }
             }
             AppMessage::AudioError(err) => {
@@ -307,6 +349,35 @@ impl App {
             AppMessage::FavoriteToggleError(err) => {
                 self.status_message = Some(format!("Favorite error: {}", err));
             }
+            AppMessage::StreamCached(data, _track_id) => {
+                // Download finished while streaming — enable seek
+                self.player.cached_data = Some(data);
+            }
+            AppMessage::PlaylistsLoaded(playlists) => {
+                self.playlists = playlists;
+                self.playlists_selected = 0;
+                self.playlists_scroll = 0;
+                self.playlists_loaded = true;
+                self.status_message = None;
+            }
+            AppMessage::PlaylistsError(err) => {
+                self.status_message = Some(format!("Playlists error: {}", err));
+            }
+            AppMessage::PlaylistLoaded(playlist) => {
+                self.playlist_tracks = playlist
+                    .tracks
+                    .as_ref()
+                    .map(|t| t.items.clone())
+                    .unwrap_or_default();
+                self.playlist_name = Some(playlist.name);
+                self.playlist_selected = 0;
+                self.playlist_scroll = 0;
+                self.screen = Screen::PlaylistView;
+                self.status_message = None;
+            }
+            AppMessage::PlaylistError(err) => {
+                self.status_message = Some(format!("Playlist error: {}", err));
+            }
             AppMessage::DownloadProgress(done, total) => {
                 self.status_message = Some(format!("Downloading album: {}/{} tracks", done, total));
             }
@@ -344,6 +415,17 @@ impl App {
                 }
                 KeyCode::Right => {
                     self.player.volume_up();
+                    return;
+                }
+                KeyCode::Tab => {
+                    self.screen = Screen::Main;
+                    self.tab = match self.tab {
+                        Tab::Search => Tab::Favorites,
+                        Tab::Favorites => Tab::Playlists,
+                        Tab::Playlists => Tab::Search,
+                    };
+                    if self.tab == Tab::Favorites && !self.favorites_loaded { self.do_load_favorites(); }
+                    if self.tab == Tab::Playlists && !self.playlists_loaded { self.do_load_playlists(); }
                     return;
                 }
                 _ => {}
@@ -391,7 +473,9 @@ impl App {
             Screen::Login => self.handle_login_key(key),
             Screen::Main => self.handle_main_key(key),
             Screen::AlbumView => self.handle_album_key(key),
+            Screen::PlaylistView => self.handle_playlist_view_key(key),
         }
+
     }
 
     fn handle_login_key(&mut self, key: KeyEvent) {
@@ -445,6 +529,7 @@ impl App {
         match self.tab {
             Tab::Search => self.handle_search_key(key),
             Tab::Favorites => self.handle_favorites_key(key),
+            Tab::Playlists => self.handle_playlists_key(key),
         }
     }
 
@@ -463,19 +548,13 @@ impl App {
             KeyCode::Down if self.search_selected + 1 < self.current_list_len() => {
                 self.search_selected += 1;
             }
-            KeyCode::Tab => {
+            KeyCode::BackTab => {
                 self.search_mode = match self.search_mode {
                     SearchMode::Tracks => SearchMode::Albums,
                     SearchMode::Albums => SearchMode::Tracks,
                 };
                 self.search_selected = 0;
                 self.search_scroll = 0;
-            }
-            KeyCode::F(2) => {
-                self.tab = Tab::Favorites;
-                if !self.favorites_loaded {
-                    self.do_load_favorites();
-                }
             }
             KeyCode::Char(c) => {
                 self.search_query.push(c);
@@ -516,7 +595,43 @@ impl App {
                     self.toggle_favorite(&album.id, false);
                 }
             }
-            KeyCode::F(1) => self.tab = Tab::Search,
+            _ => {}
+        }
+    }
+
+    fn handle_playlists_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Up if self.playlists_selected > 0 => {
+                self.playlists_selected -= 1;
+            }
+            KeyCode::Down if self.playlists_selected + 1 < self.playlists.len() => {
+                self.playlists_selected += 1;
+            }
+            KeyCode::Enter => {
+                if let Some(pl) = self.playlists.get(self.playlists_selected).cloned() {
+                    self.open_playlist(pl.id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_playlist_view_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Up if self.playlist_selected > 0 => {
+                self.playlist_selected -= 1;
+            }
+            KeyCode::Down if self.playlist_selected + 1 < self.playlist_tracks.len() => {
+                self.playlist_selected += 1;
+            }
+            KeyCode::Enter => {
+                self.queue = self.playlist_tracks.clone();
+                self.queue_index = self.playlist_selected;
+                if let Some(track) = self.queue.get(self.queue_index) {
+                    self.play_track(track.clone());
+                }
+            }
+            KeyCode::Backspace => self.screen = Screen::Main,
             _ => {}
         }
     }
@@ -712,13 +827,13 @@ impl App {
         let format_id = self.config.format_id();
 
         // Check cache first — instant playback (seekable)
-        if self.cache.has(&track_id) {
-            if let Some(data) = self.cache.get(&track_id) {
-                if let Err(e) = self.player.play_audio(data, &title, &artist, duration) {
-                    self.status_message = Some(format!("Playback error: {}", e));
-                }
-                return;
+        if self.cache.has(&track_id)
+            && let Some(data) = self.cache.get(&track_id)
+        {
+            if let Err(e) = self.player.play_audio(data, &title, &artist, duration) {
+                self.status_message = Some(format!("Playback error: {}", e));
             }
+            return;
         }
 
         self.player.set_loading(&title, &artist);
@@ -731,7 +846,6 @@ impl App {
         tokio::spawn(async move {
             match stream_track(&api, &track_id, format_id, &tx, &title, &artist, duration).await {
                 Ok(data) => {
-                    // Cache the complete data
                     let meta = TrackMeta {
                         artist: &artist,
                         album: &album_title,
@@ -739,6 +853,8 @@ impl App {
                         title: &title,
                     };
                     cache.put(&track_id, &data, &meta);
+                    // Enable seek on the currently playing track
+                    tx.send(AppMessage::StreamCached(data, track_id)).ok();
                 }
                 Err(e) => {
                     tx.send(AppMessage::AudioError(e.to_string())).ok();
@@ -803,6 +919,85 @@ impl App {
         });
     }
 
+    fn do_load_playlists(&mut self) {
+        self.status_message = Some("Loading playlists...".to_string());
+        let tx = self.tx.clone();
+        let api = self.api.clone();
+        tokio::spawn(async move {
+            match api.get_user_playlists(500).await {
+                Ok(playlists) => { tx.send(AppMessage::PlaylistsLoaded(playlists)).ok(); }
+                Err(e) => { tx.send(AppMessage::PlaylistsError(e.to_string())).ok(); }
+            }
+        });
+    }
+
+    fn open_playlist(&mut self, playlist_id: String) {
+        self.status_message = Some("Loading playlist...".to_string());
+        let tx = self.tx.clone();
+        let api = self.api.clone();
+        tokio::spawn(async move {
+            match api.get_playlist(&playlist_id).await {
+                Ok(pl) => { tx.send(AppMessage::PlaylistLoaded(pl)).ok(); }
+                Err(e) => { tx.send(AppMessage::PlaylistError(e.to_string())).ok(); }
+            }
+        });
+    }
+
+
+    /// Pre-fetch next track for gapless playback (~15s before end).
+    fn prefetch_next(&mut self) {
+        if self.next_track_prefetched {
+            return;
+        }
+        let next_idx = if self.queue_index + 1 < self.queue.len() {
+            self.queue_index + 1
+        } else if self.loop_mode == LoopMode::Queue {
+            0
+        } else {
+            return;
+        };
+        if let Some(track) = self.queue.get(next_idx) {
+            if self.cache.has(&track.id) {
+                return; // Already cached, instant playback
+            }
+            // Pre-download next track in background
+            let track_id = track.id.clone();
+            let format_id = self.config.format_id();
+            let api = self.api.clone();
+            let cache = self.cache.clone();
+            let title = track.title.clone();
+            let artist = track.artist_name().to_string();
+            let album = track.album_title().to_string();
+            let track_num = track.track_number;
+            self.next_track_prefetched = true;
+            tokio::spawn(async move {
+                if let Ok(data) = download_track(&api, &track_id, format_id).await {
+                    let meta = TrackMeta {
+                        artist: &artist,
+                        album: &album,
+                        track_number: track_num,
+                        title: &title,
+                    };
+                    cache.put(&track_id, &data, &meta);
+                }
+            });
+        }
+    }
+
+    pub fn save_session(&self) {
+        let s = session::Session {
+            queue: self.queue.iter().map(SessionTrack::from_track).collect(),
+            queue_index: self.queue_index,
+            volume: self.player.volume,
+            loop_mode: match self.loop_mode {
+                LoopMode::Off => 0,
+                LoopMode::Track => 1,
+                LoopMode::Queue => 2,
+            },
+        };
+        session::save(&s);
+    }
+
     fn do_load_favorites(&mut self) {
         self.status_message = Some("Loading favorite albums...".to_string());
         let tx = self.tx.clone();
@@ -830,7 +1025,16 @@ impl App {
             self.status_expires = None;
         }
 
+        // Pre-fetch next track for gapless playback (15s before end)
+        if self.player.is_playing
+            && self.player.current_track_duration > 0
+            && self.player.elapsed_secs() + 15 >= self.player.current_track_duration
+        {
+            self.prefetch_next();
+        }
+
         if self.player.is_finished() {
+            self.next_track_prefetched = false;
             match self.loop_mode {
                 LoopMode::Track => {
                     // Replay the same track
@@ -906,8 +1110,7 @@ async fn stream_track(
         };
 
         // Start HTTP request (identity encoding to avoid gzip mangling audio)
-        let resp = match api.client().get(&url)
-            .header("Accept-Encoding", "identity")
+        let resp = match api.raw_client().get(&url)
             .send().await
         {
             Ok(r) if r.status().is_success() => r,

@@ -1,21 +1,15 @@
-mod api;
 mod app;
-mod cache;
-mod config;
-mod player;
 mod sandbox;
-mod stream;
 mod ui;
 
 use anyhow::Result;
 use app::{App, AppMessage};
-use config::Config;
 use crossterm::event::{self, Event};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::ExecutableCommand;
-use player::Player;
+use qobuz_lib::{Config, Player};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use rodio::{OutputStream, Sink};
@@ -29,10 +23,10 @@ fn main() -> Result<()> {
     let sink = Sink::try_new(&stream_handle)?;
     let player = Player::new(sink);
 
-    // Apply Landlock sandbox: restrict filesystem to config + cache dirs,
-    // allow outbound TCP for Qobuz API. Must happen after audio init
-    // (which needs /dev access during OutputStream::try_default).
-    let config_dir = Config::path().parent().unwrap().to_path_buf();
+    let config_dir = Config::path()
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
     let cache_dir = dirs::cache_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("qobuz-tui");
@@ -87,6 +81,8 @@ async fn run_tui(
             break;
         }
     }
+
+    app.save_session();
 
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;

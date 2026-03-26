@@ -14,8 +14,11 @@ Browse your Qobuz library, search for music, and play Hi-Res FLAC directly from 
 - **Search** — Search for tracks and albums, switch between result types with Tab
 - **Album browsing** — Open any album to see its full tracklist
 - **Favorite albums** — Quick access to your Qobuz favorite albums via F2
-- **Play queue** — Automatically queues all tracks when playing from an album or search results
+- **Playlists** — Browse and play your Qobuz playlists via F3
+- **Play queue** — Automatically queues all tracks when playing from an album, playlist, or search results
 - **Auto-advance** — Next track plays automatically when the current one finishes
+- **Gapless playback** — Next track is pre-downloaded 15 seconds before the current one ends
+- **Session persistence** — Queue, volume, and loop mode are saved on exit and restored on startup
 - **Streaming playback** — Audio plays while still downloading (progressive streaming), no more waiting for full download
 - **Seek** — Skip forward/backward 10 seconds with `,` / `;`
 - **Audio playback** — Play FLAC (up to 24-bit/192kHz), MP3, and other formats via rodio + symphonia, with automatic quality fallback
@@ -92,9 +95,7 @@ The search bar is always active — just type your query and press Enter.
 | *(type)* | Edit search query |
 | `Enter` | Search (if no results) / Play track / Open album |
 | `Up` / `Down` | Navigate results (with scroll) |
-| `Tab` | Switch between Tracks and Albums results |
-| `F1` | Search tab |
-| `F2` | Favorite albums tab |
+| `Shift+Tab` | Switch between Tracks and Albums results |
 
 ### Favorite albums
 
@@ -103,7 +104,21 @@ The search bar is always active — just type your query and press Enter.
 | `Up` / `Down` | Navigate albums (with scroll) |
 | `Enter` | Open album tracklist |
 | `x` | Remove album from favorites |
-| `F1` | Back to search |
+
+### Playlists
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` | Navigate playlists (with scroll) |
+| `Enter` | Open playlist |
+
+### Playlist view
+
+| Key | Action |
+|-----|--------|
+| `Up` / `Down` | Navigate tracks (with scroll) |
+| `Enter` | Play from selected track (queues entire playlist) |
+| `Backspace` | Go back |
 
 ### Album view
 
@@ -119,6 +134,7 @@ The search bar is always active — just type your query and press Enter.
 
 | Key | Action |
 |-----|--------|
+| `Tab` | Next tab (Search → Albums → Playlists) |
 | `p` | Play / Pause |
 | `n` | Next track in queue |
 | `N` | Previous track in queue |
@@ -152,6 +168,8 @@ format_id = 27
 
 The `user_auth_token` is stored in this file after login. Delete the file to log out.
 
+Session state (queue, volume, loop mode) is saved to `~/.config/qobuz-tui/session.json` on exit and automatically restored on startup.
+
 If a track is not available in the selected quality (or the download fails), the player automatically falls back to a lower quality: 27 → 7 → 6 → 5.
 
 Audio cache is stored in `~/.cache/qobuz-tui/`, organized by artist and album:
@@ -171,17 +189,25 @@ Audio cache is stored in `~/.cache/qobuz-tui/`, organized by artist and album:
 
 ## Project structure
 
+Cargo workspace with a reusable library and a TUI binary:
+
 ```
-src/
-├── main.rs      Entry point, terminal setup, event loop
-├── config.rs    Config loading/saving
-├── api.rs       Qobuz API client (auth, search, streaming URLs, favorites)
-├── player.rs    Audio playback with progress tracking
-├── cache.rs     Local audio file cache (Artist/Album/Track)
-├── stream.rs    Streaming buffer for progressive audio playback
-├── sandbox.rs   Landlock filesystem sandbox
-├── app.rs       Application state, play queue, input handling
-└── ui.rs        TUI rendering with ratatui
+crates/
+├── qobuz-lib/              Reusable library (for TUI, Tauri, or other frontends)
+│   └── src/
+│       ├── lib.rs           Public API re-exports
+│       ├── api.rs           Qobuz API client, models, authentication
+│       ├── config.rs        Config loading/saving
+│       ├── cache.rs         Local audio file cache (Artist/Album/Track)
+│       ├── player.rs        Audio playback with seek and progress
+│       ├── stream.rs        Streaming buffer for progressive playback
+│       └── session.rs       Session persistence (queue, volume, loop)
+└── qobuz-tui/              Terminal UI binary
+    └── src/
+        ├── main.rs          Entry point, terminal setup, event loop
+        ├── app.rs           Application state, play queue, input handling
+        ├── ui.rs            TUI rendering with ratatui
+        └── sandbox.rs       Landlock filesystem sandbox (Linux)
 ```
 
 ## License

@@ -1,0 +1,16 @@
+[package]
+name = "qobuz-tui"
+version = "0.2.0"
+edition = "2024"
+license = "GPL-3.0-only"
+description = "A terminal-based Qobuz music player"
+
+[dependencies]
+qobuz-lib = { path = "../qobuz-lib" }
+ratatui = "0.30"
+crossterm = "0.29"
+tokio = { version = "1", features = ["full"] }
+rodio = { version = "0.19", features = ["symphonia-all"] }
+anyhow = "1"
+dirs = "6"
+landlock = "0.4"

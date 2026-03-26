@@ -16,6 +16,12 @@ pub struct TrackMeta<'a> {
     pub title: &'a str,
 }
 
+impl Default for AudioCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AudioCache {
     pub fn new() -> Self {
         let cache_dir = dirs::cache_dir()
@@ -30,14 +36,14 @@ impl AudioCache {
     }
 
     pub fn get(&self, track_id: &str) -> Option<Vec<u8>> {
-        let index = self.index.read().unwrap();
+        let index = self.index.read().unwrap_or_else(|e| e.into_inner());
         let rel_path = index.get(track_id)?;
         let full_path = self.cache_dir.join(rel_path);
         fs::read(&full_path).ok()
     }
 
     pub fn has(&self, track_id: &str) -> bool {
-        self.index.read().unwrap().contains_key(track_id)
+        self.index.read().unwrap_or_else(|e| e.into_inner()).contains_key(track_id)
     }
 
     pub fn put(&self, track_id: &str, data: &[u8], meta: &TrackMeta) {
@@ -65,7 +71,7 @@ impl AudioCache {
         let rel_path = PathBuf::from(&artist).join(&album).join(&filename);
         self.index
             .write()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .insert(track_id.to_string(), rel_path);
     }
 }

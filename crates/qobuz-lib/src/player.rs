@@ -12,8 +12,8 @@ pub struct Player {
     pub current_track_title: Option<String>,
     pub current_track_artist: Option<String>,
     pub current_track_duration: u64,
-    /// Cached audio data for seek support (only when playing from cache)
-    cached_data: Option<Vec<u8>>,
+    /// Cached audio data for seek support
+    pub cached_data: Option<Vec<u8>>,
     // Timing
     play_started_at: Option<Instant>,
     paused_duration: Duration,

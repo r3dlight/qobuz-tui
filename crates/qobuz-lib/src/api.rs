@@ -11,6 +11,8 @@ const WEB_PLAYER_URL: &str = "https://play.qobuz.com/login";
 #[derive(Clone)]
 pub struct QobuzClient {
     client: Client,
+    /// Client without automatic decompression — for raw audio streaming
+    raw_client: Client,
     pub app_id: String,
     pub app_secret: String,
     pub user_auth_token: Option<String>,
@@ -56,6 +58,14 @@ pub struct AlbumBrief {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct AlbumImage {
+    pub small: Option<String>,
+    pub thumbnail: Option<String>,
+    pub large: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct Album {
     #[serde(deserialize_with = "deserialize_id", default)]
     pub id: String,
@@ -65,6 +75,7 @@ pub struct Album {
     pub tracks_count: Option<u32>,
     pub duration: Option<u64>,
     pub release_date_original: Option<String>,
+    pub image: Option<AlbumImage>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -79,6 +90,24 @@ pub struct TrackList {
 pub struct AlbumList {
     pub items: Vec<Album>,
     pub total: u64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Playlist {
+    #[serde(deserialize_with = "deserialize_id", default)]
+    pub id: String,
+    pub name: String,
+    pub tracks_count: Option<u32>,
+    pub duration: Option<u64>,
+    pub owner: Option<PlaylistOwner>,
+    pub tracks: Option<TrackList>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct PlaylistOwner {
+    pub name: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -113,8 +142,15 @@ impl Track {
 
 impl QobuzClient {
     pub fn new(app_id: &str, app_secret: &str) -> Self {
+        let raw_client = Client::builder()
+            .no_gzip()
+            .no_brotli()
+            .no_deflate()
+            .build()
+            .unwrap_or_default();
         Self {
             client: Client::new(),
+            raw_client,
             app_id: app_id.to_string(),
             app_secret: app_secret.to_string(),
             user_auth_token: None,
@@ -123,6 +159,11 @@ impl QobuzClient {
 
     pub fn client(&self) -> &Client {
         &self.client
+    }
+
+    /// Client without automatic decompression — use for raw audio data.
+    pub fn raw_client(&self) -> &Client {
+        &self.raw_client
     }
 
     pub fn set_token(&mut self, token: String) {
@@ -350,7 +391,7 @@ impl QobuzClient {
             if attempt > 0 {
                 tokio::time::sleep(std::time::Duration::from_secs(1 + attempt)).await;
             }
-            let resp = match self.client.get(url).send().await {
+            let resp = match self.raw_client.get(url).send().await {
                 Ok(r) => r,
                 Err(e) => {
                     last_err = anyhow!("Request failed: {}", e);
@@ -402,6 +443,75 @@ impl QobuzClient {
         Ok(())
     }
 
+    pub async fn get_user_playlists(&self, limit: u32) -> Result<Vec<Playlist>> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .get(format!("{}/playlist/getUserPlaylists", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .query(&[("limit", &limit.to_string())])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("Get playlists failed: {}", resp.status()));
+        }
+        let text = resp.text().await?;
+        let body: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| anyhow!("Invalid JSON: {}", e))?;
+
+        // The API may return playlists at different paths depending on the response
+        let items_val = body
+            .get("playlists")
+            .and_then(|p| p.get("items"))
+            .or_else(|| body.get("items"))
+            .or_else(|| {
+                // Maybe the response IS the array directly
+                if body.is_array() { Some(&body) } else { None }
+            });
+
+        let playlists = match items_val {
+            Some(items) => items
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|item| serde_json::from_value::<Playlist>(item.clone()).ok())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            None => {
+                // Debug: show the top-level keys
+                let keys: Vec<&str> = body
+                    .as_object()
+                    .map(|o| o.keys().map(|k| k.as_str()).collect())
+                    .unwrap_or_default();
+                return Err(anyhow!("Unexpected playlist response keys: [{}]", keys.join(", ")));
+            }
+        };
+        Ok(playlists)
+    }
+
+    pub async fn get_playlist(&self, playlist_id: &str) -> Result<Playlist> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .get(format!("{}/playlist/get", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .query(&[
+                ("playlist_id", playlist_id),
+                ("extra", "tracks"),
+                ("limit", "500"),
+            ])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("Get playlist failed: {}", resp.status()));
+        }
+        let body: serde_json::Value = resp.json().await?;
+        serde_json::from_value(body).map_err(|e| anyhow!("Parse playlist: {}", e))
+    }
+
     fn require_token(&self) -> Result<&str> {
         self.user_auth_token
             .as_deref()
@@ -437,6 +547,12 @@ pub async fn fetch_app_credentials() -> Result<(String, String)> {
     let mut app_id: Option<String> = None;
     let mut app_secret: Option<String> = None;
 
+    // Pre-compile regexes (avoid recompilation per bundle)
+    let id_regexes: Vec<Regex> = [
+        r#"production[^}]*?appId\s*:\s*"(\d{9,})""#,
+        r#"appId\s*[:=]\s*"(\d{9,})""#,
+    ].iter().filter_map(|p| Regex::new(p).ok()).collect();
+
     for url in &bundle_urls {
         let body = match client.get(url).send().await {
             Ok(resp) => match resp.text().await {
@@ -448,14 +564,8 @@ pub async fn fetch_app_credentials() -> Result<(String, String)> {
 
         // Extract app_id from production config
         if app_id.is_none() {
-            let id_patterns = [
-                r#"production[^}]*?appId\s*:\s*"(\d{9,})""#,
-                r#"appId\s*[:=]\s*"(\d{9,})""#,
-            ];
-            for pattern in &id_patterns {
-                if let Ok(re) = Regex::new(pattern)
-                    && let Some(cap) = re.captures(&body)
-                {
+            for re in &id_regexes {
+                if let Some(cap) = re.captures(&body) {
                     app_id = Some(cap[1].to_string());
                     break;
                 }
