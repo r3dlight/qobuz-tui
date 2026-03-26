@@ -22,6 +22,7 @@ Browse your Qobuz library, search for music, and play Hi-Res FLAC directly from 
 - **Scrollable lists** — Navigate large lists with scroll indicators
 - **Audio cache** — Downloaded tracks are cached locally to avoid re-downloading
 - **Playback controls** — Play/pause, next/previous track, volume
+- **Loop mode** — Loop current track, entire queue, or off (`r` to cycle)
 - **Sandboxed** — [Landlock](https://landlock.io/) restricts filesystem access to only what the app needs (Linux 5.13+)
 
 ## Prerequisites
@@ -117,11 +118,12 @@ The search bar is always active — just type your query and press Enter.
 | `p` | Play / Pause |
 | `n` | Next track in queue |
 | `N` | Previous track in queue |
+| `r` | Cycle loop mode: Off → `LOOP:TRACK` → `LOOP:ALL` → Off |
 | `Left` / `Right` | Volume down / up |
 | `Esc` | Quit |
 | `Ctrl+C` | Force quit |
 
-> **Note:** `p`, `n`, `N` are used for typing on the search and login screens. Playback controls work on the favorites, album view, and all other screens.
+> **Note:** `p`, `n`, `N`, `r` are used for typing on the search and login screens. Playback controls work on the favorites, album view, and all other screens.
 
 ## Configuration
 

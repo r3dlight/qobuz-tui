@@ -85,12 +85,13 @@ impl Player {
 
     pub fn set_loading(&mut self, title: &str, artist: &str) {
         self.is_loading = true;
+        self.is_playing = false; // Prevent is_finished() from re-triggering
         self.current_track_title = Some(title.to_string());
         self.current_track_artist = Some(artist.to_string());
     }
 
     pub fn is_finished(&self) -> bool {
-        self.sink.empty() && self.is_playing
+        self.sink.empty() && self.is_playing && !self.is_loading
     }
 
     /// Elapsed playback time in seconds (accounts for pauses).

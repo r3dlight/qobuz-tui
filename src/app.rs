@@ -80,6 +80,7 @@ pub struct App {
     // Play queue
     pub queue: Vec<Track>,
     pub queue_index: usize,
+    pub loop_mode: LoopMode,
 
     // Player
     pub player: Player,
@@ -94,6 +95,31 @@ pub struct App {
     pub api: QobuzClient,
     pub config: Config,
     pub tx: mpsc::UnboundedSender<AppMessage>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LoopMode {
+    Off,
+    Track,
+    Queue,
+}
+
+impl LoopMode {
+    pub fn next(&self) -> Self {
+        match self {
+            LoopMode::Off => LoopMode::Track,
+            LoopMode::Track => LoopMode::Queue,
+            LoopMode::Queue => LoopMode::Off,
+        }
+    }
+
+    pub fn label(&self) -> &str {
+        match self {
+            LoopMode::Off => "",
+            LoopMode::Track => "[LOOP:TRACK]",
+            LoopMode::Queue => "[LOOP:ALL]",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -169,6 +195,7 @@ impl App {
             album_scroll: 0,
             queue: Vec::new(),
             queue_index: 0,
+            loop_mode: LoopMode::Off,
             player,
             cache: AudioCache::new(),
             status_message: None,
@@ -321,6 +348,10 @@ impl App {
                 }
                 KeyCode::Char('N') => {
                     self.play_previous();
+                    return;
+                }
+                KeyCode::Char('r') => {
+                    self.loop_mode = self.loop_mode.next();
                     return;
                 }
                 _ => {}
@@ -711,14 +742,35 @@ impl App {
     }
 
     pub fn tick(&mut self) {
-        // Auto-advance to next track when current one finishes
         if self.player.is_finished() {
-            if self.queue_index + 1 < self.queue.len() {
-                self.queue_index += 1;
-                let track = self.queue[self.queue_index].clone();
-                self.play_track(track);
-            } else {
-                self.player.clear();
+            match self.loop_mode {
+                LoopMode::Track => {
+                    // Replay the same track
+                    if let Some(track) = self.queue.get(self.queue_index).cloned() {
+                        self.play_track(track);
+                    }
+                }
+                LoopMode::Queue => {
+                    // Advance, wrap around to beginning
+                    if self.queue_index + 1 < self.queue.len() {
+                        self.queue_index += 1;
+                    } else {
+                        self.queue_index = 0;
+                    }
+                    if let Some(track) = self.queue.get(self.queue_index).cloned() {
+                        self.play_track(track);
+                    }
+                }
+                LoopMode::Off => {
+                    // Advance, stop at end
+                    if self.queue_index + 1 < self.queue.len() {
+                        self.queue_index += 1;
+                        let track = self.queue[self.queue_index].clone();
+                        self.play_track(track);
+                    } else {
+                        self.player.clear();
+                    }
+                }
             }
         }
     }

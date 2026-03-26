@@ -455,10 +455,16 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
         } else {
             String::new()
         };
+        let loop_label = app.loop_mode.label();
+        let loop_str = if loop_label.is_empty() {
+            String::new()
+        } else {
+            format!("  {}", loop_label)
+        };
         if app.player.is_loading {
             format!("{}Loading {} - {}", np_icon, title, artist)
         } else {
-            format!("{}{} \u{2022} {}{}", np_icon, title, artist, queue_info)
+            format!("{}{} \u{2022} {}{}{}", np_icon, title, artist, queue_info, loop_str)
         }
     } else {
         format!("{}Nothing playing", np_icon)
@@ -512,10 +518,10 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
 fn render_help_bar(f: &mut Frame, app: &App, area: Rect) {
     let hints: Vec<(&str, &str)> = match app.screen {
         Screen::Main => match app.tab {
-            Tab::Search => vec![("Enter", "Search/Play"), ("Tab", "Tracks/Albums"), ("\u{2191}\u{2193}", "Navigate"), ("p", "Pause"), ("n/N", "Next/Prev"), ("Esc", "Quit")],
-            Tab::Favorites => vec![("Enter", "Open"), ("\u{2191}\u{2193}", "Navigate"), ("F1", "Search"), ("p", "Pause"), ("n/N", "Next/Prev"), ("Esc", "Quit")],
+            Tab::Search => vec![("Enter", "Search/Play"), ("Tab", "Tracks/Albums"), ("\u{2191}\u{2193}", "Navigate"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
+            Tab::Favorites => vec![("Enter", "Open"), ("\u{2191}\u{2193}", "Navigate"), ("F1", "Search"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
         },
-        Screen::AlbumView => vec![("Enter", "Play"), ("\u{2191}\u{2193}", "Navigate"), ("d", "Download"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Next/Prev"), ("Esc", "Quit")],
+        Screen::AlbumView => vec![("Enter", "Play"), ("\u{2191}\u{2193}", "Navigate"), ("d", "Download"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
         Screen::Login => return,
     };
     let spans: Vec<Span> = hints.iter().enumerate().flat_map(|(i, (key, action))| {
