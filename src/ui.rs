@@ -519,9 +519,9 @@ fn render_help_bar(f: &mut Frame, app: &App, area: Rect) {
     let hints: Vec<(&str, &str)> = match app.screen {
         Screen::Main => match app.tab {
             Tab::Search => vec![("Enter", "Search/Play"), ("Tab", "Tracks/Albums"), ("\u{2191}\u{2193}", "Navigate"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
-            Tab::Favorites => vec![("Enter", "Open"), ("\u{2191}\u{2193}", "Navigate"), ("F1", "Search"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
+            Tab::Favorites => vec![("Enter", "Open"), ("x", "Unfavorite"), ("\u{2191}\u{2193}", "Navigate"), ("F1", "Search"), ("p", "Pause"), ("r", "Loop"), ("Esc", "Quit")],
         },
-        Screen::AlbumView => vec![("Enter", "Play"), ("\u{2191}\u{2193}", "Navigate"), ("d", "Download"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
+        Screen::AlbumView => vec![("Enter", "Play"), ("d", "Download"), ("f", "Favorite"), ("\u{2191}\u{2193}", "Nav"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Next/Prev"), ("r", "Loop"), ("Esc", "Quit")],
         Screen::Login => return,
     };
     let spans: Vec<Span> = hints.iter().enumerate().flat_map(|(i, (key, action))| {

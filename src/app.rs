@@ -40,9 +40,11 @@ pub enum AppMessage {
     AudioError(String),
     AlbumLoaded(Album),
     AlbumError(String),
-    DownloadProgress(usize, usize), // downloaded, total
+    DownloadProgress(usize, usize),
     DownloadDone,
     DownloadError(String),
+    FavoriteToggled(String, bool), // album_id, added (true) or removed (false)
+    FavoriteToggleError(String),
 }
 
 pub struct App {
@@ -292,6 +294,23 @@ impl App {
             AppMessage::AlbumError(err) => {
                 self.status_message = Some(format!("Album error: {}", err));
             }
+            AppMessage::FavoriteToggled(album_id, added) => {
+                if added {
+                    self.status_message = Some("Added to favorites".to_string());
+                } else {
+                    self.status_message = Some("Removed from favorites".to_string());
+                    // Remove from local list
+                    self.favorite_albums.retain(|a| a.id != album_id);
+                    if self.favorites_selected > 0
+                        && self.favorites_selected >= self.favorite_albums.len()
+                    {
+                        self.favorites_selected = self.favorite_albums.len().saturating_sub(1);
+                    }
+                }
+            }
+            AppMessage::FavoriteToggleError(err) => {
+                self.status_message = Some(format!("Favorite error: {}", err));
+            }
             AppMessage::DownloadProgress(done, total) => {
                 self.status_message = Some(format!("Downloading album: {}/{} tracks", done, total));
             }
@@ -481,6 +500,12 @@ impl App {
                     self.open_album(album.id);
                 }
             }
+            KeyCode::Char('x') => {
+                // Remove from favorites
+                if let Some(album) = self.favorite_albums.get(self.favorites_selected).cloned() {
+                    self.toggle_favorite(&album.id, false);
+                }
+            }
             KeyCode::F(1) => self.tab = Tab::Search,
             _ => {}
         }
@@ -500,9 +525,38 @@ impl App {
             KeyCode::Char('d') => {
                 self.download_album();
             }
+            KeyCode::Char('f') => {
+                // Add current album to favorites
+                if let Some(album) = &self.album {
+                    let album_id = album.id.clone();
+                    self.toggle_favorite(&album_id, true);
+                }
+            }
             KeyCode::Backspace => self.screen = Screen::Main,
             _ => {}
         }
+    }
+
+    fn toggle_favorite(&mut self, album_id: &str, add: bool) {
+        let album_id = album_id.to_string();
+        let tx = self.tx.clone();
+        let api = self.api.clone();
+        self.status_message = Some(if add {
+            "Adding to favorites...".to_string()
+        } else {
+            "Removing from favorites...".to_string()
+        });
+        tokio::spawn(async move {
+            let result = if add {
+                api.favorite_add_album(&album_id).await
+            } else {
+                api.favorite_remove_album(&album_id).await
+            };
+            match result {
+                Ok(()) => { tx.send(AppMessage::FavoriteToggled(album_id, add)).ok(); }
+                Err(e) => { tx.send(AppMessage::FavoriteToggleError(e.to_string())).ok(); }
+            }
+        });
     }
 
     fn download_album(&mut self) {

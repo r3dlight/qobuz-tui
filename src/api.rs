@@ -366,6 +366,38 @@ impl QobuzClient {
         Err(last_err)
     }
 
+    pub async fn favorite_add_album(&self, album_id: &str) -> Result<()> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .post(format!("{}/favorite/create", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .form(&[("album_ids", album_id)])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("Add favorite failed: {}", resp.status()));
+        }
+        Ok(())
+    }
+
+    pub async fn favorite_remove_album(&self, album_id: &str) -> Result<()> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .post(format!("{}/favorite/delete", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .form(&[("album_ids", album_id)])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("Remove favorite failed: {}", resp.status()));
+        }
+        Ok(())
+    }
+
     fn require_token(&self) -> Result<&str> {
         self.user_auth_token
             .as_deref()

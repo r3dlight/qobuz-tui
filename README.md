@@ -100,6 +100,7 @@ The search bar is always active — just type your query and press Enter.
 |-----|--------|
 | `Up` / `Down` | Navigate albums (with scroll) |
 | `Enter` | Open album tracklist |
+| `x` | Remove album from favorites |
 | `F1` | Back to search |
 
 ### Album view
@@ -109,6 +110,7 @@ The search bar is always active — just type your query and press Enter.
 | `Up` / `Down` | Navigate tracks (with scroll) |
 | `Enter` | Play from selected track (queues remaining tracks) |
 | `d` | Download entire album to cache |
+| `f` | Add album to favorites |
 | `Backspace` | Go back |
 
 ### Global (works on all screens)
@@ -123,7 +125,7 @@ The search bar is always active — just type your query and press Enter.
 | `Esc` | Quit |
 | `Ctrl+C` | Force quit |
 
-> **Note:** `p`, `n`, `N`, `r` are used for typing on the search and login screens. Playback controls work on the favorites, album view, and all other screens.
+> **Note:** `p`, `n`, `N`, `r`, `f`, `x`, `d` are letter keys used as shortcuts — they type normally on the search and login screens.
 
 ## Configuration
 
