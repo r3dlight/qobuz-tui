@@ -12,11 +12,13 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
+/// Thread-safe audio file cache with on-disk storage and in-memory index.
 pub struct AudioCache {
     cache_dir: PathBuf,
     index: Arc<RwLock<HashMap<String, PathBuf>>>,
 }
 
+/// Metadata for building cache file paths (`Artist/Album/01 - Title.flac`).
 pub struct TrackMeta<'a> {
     pub artist: &'a str,
     pub album: &'a str,
@@ -31,6 +33,7 @@ impl Default for AudioCache {
 }
 
 impl AudioCache {
+    /// Create a new cache, scanning `~/.cache/qobuz-tui/` for existing files.
     pub fn new() -> Self {
         let cache_dir = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -43,6 +46,7 @@ impl AudioCache {
         }
     }
 
+    /// Read cached audio data for a track. Returns `None` if not cached.
     pub fn get(&self, track_id: &str) -> Option<Vec<u8>> {
         let index = self.index.read().unwrap_or_else(|e| e.into_inner());
         let rel_path = index.get(track_id)?;
@@ -50,6 +54,7 @@ impl AudioCache {
         fs::read(&full_path).ok()
     }
 
+    /// Check if a track is in the cache index (without reading the file).
     pub fn has(&self, track_id: &str) -> bool {
         self.index.read().unwrap_or_else(|e| e.into_inner()).contains_key(track_id)
     }

@@ -22,6 +22,7 @@ pub enum AudioQuality {
 }
 
 impl AudioQuality {
+    /// Convert a Qobuz format_id (5, 6, 7, 27) to an `AudioQuality` variant.
     pub fn from_format_id(id: u32) -> Option<Self> {
         match id {
             5 => Some(Self::Mp3_320),
@@ -32,6 +33,7 @@ impl AudioQuality {
         }
     }
 
+    /// Human-readable label (e.g. "FLAC 24/192").
     pub fn label(&self) -> &'static str {
         match self {
             Self::Mp3_320 => "MP3 320k",
@@ -42,6 +44,7 @@ impl AudioQuality {
     }
 }
 
+/// Audio playback engine wrapping a rodio `Sink`.
 pub struct Player {
     sink: Sink,
     pub volume: f32,
@@ -62,6 +65,7 @@ pub struct Player {
 }
 
 impl Player {
+    /// Create a new player with the given rodio `Sink`. Default volume: 80%.
     pub fn new(sink: Sink) -> Self {
         sink.set_volume(0.8);
         Self {
@@ -133,6 +137,7 @@ impl Player {
         self.position_offset = Duration::ZERO;
     }
 
+    /// Toggle between playing and paused. No-op if nothing is loaded.
     pub fn toggle_pause(&mut self) {
         if self.is_playing {
             self.sink.pause();
@@ -172,19 +177,23 @@ impl Player {
         self.cached_data.is_some()
     }
 
+    /// Set volume (clamped to 0.0..1.0).
     pub fn set_volume(&mut self, vol: f32) {
         self.volume = vol.clamp(0.0, 1.0);
         self.sink.set_volume(self.volume);
     }
 
+    /// Increase volume by 5%.
     pub fn volume_up(&mut self) {
         self.set_volume(self.volume + 0.05);
     }
 
+    /// Decrease volume by 5%.
     pub fn volume_down(&mut self) {
         self.set_volume(self.volume - 0.05);
     }
 
+    /// Mark the player as loading a new track (shows "Loading..." in the UI).
     pub fn set_loading(&mut self, title: &str, artist: &str) {
         self.is_loading = true;
         self.is_playing = false;
@@ -192,6 +201,7 @@ impl Player {
         self.current_track_artist = Some(artist.to_string());
     }
 
+    /// True if the sink is empty and we were playing (track ended naturally).
     pub fn is_finished(&self) -> bool {
         self.sink.empty() && self.is_playing && !self.is_loading
     }
@@ -210,6 +220,7 @@ impl Player {
         self.seek_to(target)
     }
 
+    /// Last seek error message, if any.
     pub fn last_seek_error(&self) -> Option<&str> {
         self.last_seek_err.as_deref()
     }
@@ -250,6 +261,7 @@ impl Player {
         true
     }
 
+    /// Elapsed playback time in seconds (accounts for pauses and seeks).
     pub fn elapsed_secs(&self) -> u64 {
         if let Some(started) = self.play_started_at {
             let wall_time = started.elapsed();
@@ -267,6 +279,7 @@ impl Player {
         }
     }
 
+    /// Playback progress as a fraction (0.0 to 1.0).
     pub fn progress(&self) -> f64 {
         if self.current_track_duration == 0 {
             return 0.0;
@@ -274,6 +287,7 @@ impl Player {
         (self.elapsed_secs() as f64 / self.current_track_duration as f64).min(1.0)
     }
 
+    /// Reset all player state (stop playback, clear track info).
     pub fn clear(&mut self) {
         self.is_playing = false;
         self.is_loading = false;

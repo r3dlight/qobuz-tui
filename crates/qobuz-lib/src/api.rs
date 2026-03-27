@@ -20,6 +20,7 @@ const BASE_URL: &str = "https://www.qobuz.com/api.json/0.2";
 const WEB_PLAYER_URL: &str = "https://play.qobuz.com/login";
 
 #[derive(Clone)]
+/// Qobuz API client. Handles authentication, search, streaming, and favorites.
 pub struct QobuzClient {
     client: Client,
     /// Client without automatic decompression — for raw audio streaming
@@ -130,6 +131,7 @@ pub struct SearchResults {
 
 
 impl Track {
+    /// Artist display name, or "Unknown" if not available.
     pub fn artist_name(&self) -> &str {
         self.performer
             .as_ref()
@@ -137,6 +139,7 @@ impl Track {
             .unwrap_or("Unknown")
     }
 
+    /// Album title, or "Unknown" if not available.
     pub fn album_title(&self) -> &str {
         self.album
             .as_ref()
@@ -144,6 +147,7 @@ impl Track {
             .unwrap_or("Unknown")
     }
 
+    /// Format duration as "M:SS".
     pub fn format_duration(&self) -> String {
         let mins = self.duration / 60;
         let secs = self.duration % 60;
@@ -162,6 +166,7 @@ pub fn format_fallback_chain(preferred: u32) -> &'static [u32] {
 }
 
 impl QobuzClient {
+    /// Create a new client with the given API credentials.
     pub fn new(app_id: &str, app_secret: &str) -> Self {
         // raw_client: no automatic decompression, for audio downloads.
         // Falls back to default client if builder fails (e.g. TLS init issue).
@@ -180,19 +185,22 @@ impl QobuzClient {
         }
     }
 
+    /// Standard HTTP client (with automatic decompression).
     pub fn client(&self) -> &Client {
         &self.client
     }
 
-    /// Client without automatic decompression — use for raw audio data.
+    /// HTTP client without decompression — for raw audio data downloads.
     pub fn raw_client(&self) -> &Client {
         &self.raw_client
     }
 
+    /// Set the user authentication token (obtained from login).
     pub fn set_token(&mut self, token: String) {
         self.user_auth_token = Some(token);
     }
 
+    /// Authenticate with Qobuz. Returns the user auth token on success.
     pub async fn login(&mut self, email: &str, password: &str) -> Result<String> {
         let password_hash = format!("{:x}", md5::compute(password.as_bytes()));
 
@@ -224,6 +232,7 @@ impl QobuzClient {
         Ok(token)
     }
 
+    /// Search for tracks and albums matching `query`.
     pub async fn search(&self, query: &str, limit: u32) -> Result<SearchResults> {
         let token = self.require_token()?;
 
@@ -296,6 +305,7 @@ impl QobuzClient {
         })
     }
 
+    /// Fetch album details including tracklist.
     pub async fn get_album(&self, album_id: &str) -> Result<Album> {
         let token = self.require_token()?;
 
@@ -318,6 +328,7 @@ impl QobuzClient {
         Ok(album)
     }
 
+    /// Get a signed streaming URL for a track at the given quality.
     pub async fn get_track_url(&self, track_id: &str, format_id: u32) -> Result<String> {
         let token = self.require_token()?;
         let timestamp = SystemTime::now()
@@ -370,6 +381,7 @@ impl QobuzClient {
             .ok_or_else(|| anyhow!("No URL in response: {}", body))
     }
 
+    /// Fetch the user's favorite albums.
     pub async fn get_favorite_albums(&self, limit: u32) -> Result<Vec<Album>> {
         let token = self.require_token()?;
 
@@ -408,6 +420,7 @@ impl QobuzClient {
         Ok(albums)
     }
 
+    /// Download raw audio data from a URL (with 3 retries).
     pub async fn download_audio(&self, url: &str) -> Result<Vec<u8>> {
         let mut last_err = anyhow!("Download failed");
         for attempt in 0..3u64 {
@@ -456,6 +469,7 @@ impl QobuzClient {
         Err(last_err)
     }
 
+    /// Add an album to the user's favorites.
     pub async fn favorite_add_album(&self, album_id: &str) -> Result<()> {
         let token = self.require_token()?;
         let resp = self
@@ -472,6 +486,7 @@ impl QobuzClient {
         Ok(())
     }
 
+    /// Remove an album from the user's favorites.
     pub async fn favorite_remove_album(&self, album_id: &str) -> Result<()> {
         let token = self.require_token()?;
         let resp = self
@@ -488,6 +503,7 @@ impl QobuzClient {
         Ok(())
     }
 
+    /// Fetch the user's playlists.
     pub async fn get_user_playlists(&self, limit: u32) -> Result<Vec<Playlist>> {
         let token = self.require_token()?;
         let resp = self
@@ -536,6 +552,7 @@ impl QobuzClient {
         Ok(playlists)
     }
 
+    /// Fetch a playlist with its tracks.
     pub async fn get_playlist(&self, playlist_id: &str) -> Result<Playlist> {
         let token = self.require_token()?;
         let resp = self

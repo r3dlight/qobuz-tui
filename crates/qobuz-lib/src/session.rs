@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Serializable session state for persistence between restarts.
 #[derive(Serialize, Deserialize, Default)]
 pub struct Session {
     pub queue: Vec<SessionTrack>,
@@ -16,6 +17,7 @@ pub struct Session {
     pub loop_mode: u8, // 0=Off, 1=Track, 2=Queue
 }
 
+/// Minimal track representation for session serialization.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SessionTrack {
     pub id: String,
@@ -27,6 +29,7 @@ pub struct SessionTrack {
 }
 
 impl SessionTrack {
+    /// Convert a full `Track` into a minimal `SessionTrack` for serialization.
     pub fn from_track(t: &Track) -> Self {
         Self {
             id: t.id.clone(),
@@ -38,6 +41,7 @@ impl SessionTrack {
         }
     }
 
+    /// Reconstruct a `Track` from session data.
     pub fn to_track(&self) -> Track {
         Track {
             id: self.id.clone(),
@@ -62,6 +66,7 @@ fn session_path() -> PathBuf {
         .join("session.json")
 }
 
+/// Load session from disk, or return defaults if not found.
 pub fn load() -> Session {
     let path = session_path();
     if path.exists() {

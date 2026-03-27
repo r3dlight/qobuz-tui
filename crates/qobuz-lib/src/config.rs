@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Persistent application configuration (credentials, audio quality).
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Config {
     #[serde(default)]
@@ -24,6 +25,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Path to the config file (`~/.config/qobuz-tui/config.toml`).
     pub fn path() -> PathBuf {
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -31,6 +33,7 @@ impl Config {
         config_dir.join("config.toml")
     }
 
+    /// Load config from disk, or return defaults if the file doesn't exist.
     pub fn load() -> Self {
         let path = Self::path();
         if path.exists() {
@@ -41,6 +44,7 @@ impl Config {
         }
     }
 
+    /// Save config to disk (creates parent directories if needed).
     pub fn save(&self) -> Result<()> {
         let path = Self::path();
         if let Some(parent) = path.parent() {
@@ -51,14 +55,17 @@ impl Config {
         Ok(())
     }
 
+    /// Preferred audio format_id (default: 27 = Hi-Res 24-bit/192kHz).
     pub fn format_id(&self) -> u32 {
         self.format_id.unwrap_or(27) // Default: Hi-Res 24-bit/192kHz
     }
 
+    /// Whether both `app_id` and `app_secret` are set.
     pub fn has_app_credentials(&self) -> bool {
         !self.app_id.is_empty() && !self.app_secret.is_empty()
     }
 
+    /// Whether the user has valid credentials and an auth token.
     pub fn is_logged_in(&self) -> bool {
         self.user_auth_token.is_some() && self.has_app_credentials()
     }
