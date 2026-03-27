@@ -6,6 +6,36 @@ use rodio::{Decoder, Sink, Source};
 use std::io::Cursor;
 use std::time::{Duration, Instant};
 
+/// Audio quality format ID used by Qobuz.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AudioQuality {
+    Mp3_320 = 5,
+    FlacCd = 6,
+    FlacHiRes96 = 7,
+    FlacHiRes192 = 27,
+}
+
+impl AudioQuality {
+    pub fn from_format_id(id: u32) -> Option<Self> {
+        match id {
+            5 => Some(Self::Mp3_320),
+            6 => Some(Self::FlacCd),
+            7 => Some(Self::FlacHiRes96),
+            27 => Some(Self::FlacHiRes192),
+            _ => None,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Mp3_320 => "MP3 320k",
+            Self::FlacCd => "FLAC 16/44",
+            Self::FlacHiRes96 => "FLAC 24/96",
+            Self::FlacHiRes192 => "FLAC 24/192",
+        }
+    }
+}
+
 pub struct Player {
     sink: Sink,
     pub volume: f32,
@@ -14,6 +44,7 @@ pub struct Player {
     pub current_track_title: Option<String>,
     pub current_track_artist: Option<String>,
     pub current_track_duration: u64,
+    pub current_quality: Option<AudioQuality>,
     /// Cached audio data for seek support
     pub cached_data: Option<Vec<u8>>,
     // Timing
@@ -35,6 +66,7 @@ impl Player {
             current_track_title: None,
             current_track_artist: None,
             current_track_duration: 0,
+            current_quality: None,
             cached_data: None,
             play_started_at: None,
             paused_duration: Duration::ZERO,
@@ -215,6 +247,7 @@ impl Player {
         self.is_playing = false;
         self.is_loading = false;
         self.cached_data = None;
+        self.current_quality = None;
         self.current_track_title = None;
         self.current_track_artist = None;
         self.current_track_duration = 0;

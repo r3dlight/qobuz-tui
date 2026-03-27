@@ -3,12 +3,22 @@
 use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;
-use qobuz_lib::player::Player;
+use qobuz_lib::player::{AudioQuality, Player};
 use qobuz_lib::session::{self, SessionTrack};
 use qobuz_lib::stream::{self, StreamingBuffer};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
+
+/// Quality fallback chain for a given preferred format_id.
+fn format_fallback_chain(preferred: u32) -> &'static [u32] {
+    match preferred {
+        27 => &[27, 7, 6, 5],
+        7 => &[7, 6, 5],
+        6 => &[6, 5],
+        _ => &[5],
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
@@ -42,7 +52,10 @@ pub enum AppMessage {
     FavoritesResults(Vec<Album>),
     FavoritesError(String),
     /// Streaming buffer ready for playback (progressive download started)
-    StreamReady(StreamingBuffer, String, String, u64),
+    /// buffer, title, artist, duration, format_id
+    StreamReady(StreamingBuffer, String, String, u64, u32),
+    /// Temporary status message (e.g. quality fallback notification)
+    StatusMessage(String),
     /// Download error
     AudioError(String),
     AlbumLoaded(Album),
@@ -309,11 +322,14 @@ impl App {
             AppMessage::FavoritesError(err) => {
                 self.status_message = Some(format!("Favorites error: {}", err));
             }
-            AppMessage::StreamReady(buffer, title, artist, duration) => {
-                if self.player.play_streaming(buffer, &title, &artist, duration).is_err() {
-                    // Decoder failed on this stream — likely a format fallback in progress.
-                    // Don't show error; the next format attempt will send another StreamReady.
+            AppMessage::StreamReady(buffer, title, artist, duration, format_id) => {
+                if self.player.play_streaming(buffer, &title, &artist, duration).is_ok() {
+                    self.player.current_quality = AudioQuality::from_format_id(format_id);
                 }
+                // Decoder failure is silent — format fallback will send another StreamReady.
+            }
+            AppMessage::StatusMessage(msg) => {
+                self.set_temp_status(msg);
             }
             AppMessage::AudioError(err) => {
                 self.player.is_loading = false;
@@ -1099,25 +1115,31 @@ async fn stream_track(
     artist: &str,
     duration: u64,
 ) -> Result<Vec<u8>> {
-    let formats = match preferred_format {
-        27 => &[27, 7, 6, 5][..],
-        7 => &[7, 6, 5][..],
-        6 => &[6, 5][..],
-        _ => &[preferred_format, 5][..],
-    };
-
+    let formats = format_fallback_chain(preferred_format);
     let mut last_err = anyhow::anyhow!("No format available");
+    let mut tried_first = false;
 
     for &fmt in formats {
         let url = match api.get_track_url(track_id, fmt).await {
             Ok(u) => u,
-            Err(_) => continue,
+            Err(_) => {
+                tried_first = true;
+                continue;
+            }
         };
 
-        // Start HTTP request (identity encoding to avoid gzip mangling audio)
-        let resp = match api.raw_client().get(&url)
-            .send().await
-        {
+        // Notify user of quality fallback
+        if tried_first && fmt != preferred_format {
+            let quality = AudioQuality::from_format_id(fmt)
+                .map(|q| q.label())
+                .unwrap_or("?");
+            tx.send(AppMessage::StatusMessage(
+                format!("Quality fallback: {}", quality),
+            )).ok();
+        }
+        tried_first = true;
+
+        let resp = match api.raw_client().get(&url).send().await {
             Ok(r) if r.status().is_success() => r,
             Ok(r) => {
                 last_err = anyhow::anyhow!("HTTP {}", r.status());
@@ -1131,14 +1153,10 @@ async fn stream_track(
 
         let total_size = resp.content_length().unwrap_or(0);
         let (writer, buffer) = stream::new_streaming_pair(total_size);
-
-        // Download chunks, send buffer after initial data
         let mut sent_buffer = false;
         let mut buffer_opt = Some(buffer);
         let mut resp = resp;
         let mut download_ok = true;
-
-        // Initial buffer threshold: 128KB or 10% of file, whichever is smaller
         let threshold = (total_size / 10).clamp(64 * 1024, 256 * 1024) as usize;
 
         loop {
@@ -1150,12 +1168,8 @@ async fn stream_track(
                         && let Some(buf) = buffer_opt.take()
                     {
                         tx.send(AppMessage::StreamReady(
-                            buf,
-                            title.to_string(),
-                            artist.to_string(),
-                            duration,
-                        ))
-                        .ok();
+                            buf, title.to_string(), artist.to_string(), duration, fmt,
+                        )).ok();
                         sent_buffer = true;
                     }
                 }
@@ -1169,23 +1183,17 @@ async fn stream_track(
         }
         writer.finish();
 
-        // If file was small, send buffer now (all data already in it)
         if !sent_buffer
             && let Some(buf) = buffer_opt.take()
         {
             tx.send(AppMessage::StreamReady(
-                buf,
-                title.to_string(),
-                artist.to_string(),
-                duration,
-            ))
-            .ok();
+                buf, title.to_string(), artist.to_string(), duration, fmt,
+            )).ok();
         }
 
         if download_ok {
             return Ok(writer.get_data());
         }
-        // Download failed midway — try next format
     }
 
     Err(last_err)
@@ -1197,13 +1205,7 @@ async fn download_track(
     track_id: &str,
     preferred_format: u32,
 ) -> Result<Vec<u8>> {
-    let formats = match preferred_format {
-        27 => &[27, 7, 6, 5][..],
-        7 => &[7, 6, 5][..],
-        6 => &[6, 5][..],
-        _ => &[preferred_format, 5][..],
-    };
-
+    let formats = format_fallback_chain(preferred_format);
     let mut last_err = anyhow::anyhow!("No format available");
 
     for &fmt in formats {

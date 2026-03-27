@@ -12,5 +12,5 @@ pub mod stream;
 pub use api::{Album, AlbumImage, Artist, Playlist, PlaylistOwner, QobuzClient, SearchResults, Track};
 pub use cache::{AudioCache, TrackMeta};
 pub use config::Config;
-pub use player::Player;
+pub use player::{AudioQuality, Player};
 pub use stream::{new_streaming_pair, StreamingBuffer, StreamWriter};

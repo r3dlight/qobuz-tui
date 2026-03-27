@@ -506,6 +506,9 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
 
     let np_line = if let Some(title) = &app.player.current_track_title {
         let artist = app.player.current_track_artist.as_deref().unwrap_or("");
+        let quality_str = app.player.current_quality
+            .map(|q| format!("  [{}]", q.label()))
+            .unwrap_or_default();
         let queue_info = if app.queue.len() > 1 {
             format!("  {} {}/{}", ICON_QUEUE, app.queue_index + 1, app.queue.len())
         } else { String::new() };
@@ -516,6 +519,7 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(format!(" {} ", icon), icon_style),
             Span::styled(title, Style::default().fg(WHITE).add_modifier(Modifier::BOLD)),
             Span::styled(format!("  \u{2022}  {}", artist), Style::default().fg(TEXT)),
+            Span::styled(quality_str, Style::default().fg(ACCENT)),
             Span::styled(queue_info, Style::default().fg(MUTED)),
             Span::styled(loop_str, Style::default().fg(PURPLE)),
         ])
