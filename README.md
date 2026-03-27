@@ -222,6 +222,28 @@ crates/
         └── sandbox.rs       Landlock filesystem sandbox (Linux)
 ```
 
+## Security
+
+This project follows the [ANSSI Rust security guide](https://anssi-fr.github.io/rust-guide/fr/) recommendations:
+
+- **`#![deny(unsafe_code)]`** in both crates. A single `unsafe impl Send` is required for the streaming buffer and is scoped with `#[allow(unsafe_code)]` with a documented safety invariant.
+- **No raw pointers**, no unchecked arithmetic — all integer casts use `try_from`/`checked_add`.
+- **No panicking indexing** — all slice accesses use `.get()` instead of direct indexing.
+- **Poison-safe locks** — all `Mutex`/`RwLock` uses recover from poisoning via `unwrap_or_else`.
+- **Landlock sandbox** — filesystem access is restricted to config, cache, and system directories.
+- **Dependency auditing** — `cargo-audit` runs in CI via `rustsec/audit-check`.
+- **Linting** — `cargo clippy` with `-D warnings` enforced in CI.
+
+### Known limitations
+
+- **MD5 usage**: The Qobuz API requires MD5 for password hashing and request signing. This is a protocol requirement — the application has no control over the choice of hash function. All communication occurs over HTTPS.
+- **Plaintext credentials**: The authentication token is stored in `~/.config/qobuz-tui/config.toml` with standard file permissions. This follows XDG conventions and is documented.
+- **Qobuz Connect not implemented**: The Qobuz Connect protocol (allowing the official Qobuz app to control the player) is intentionally not implemented due to security concerns:
+  - JWT credentials are exchanged over unencrypted HTTP on the local network
+  - No mutual authentication or PIN-based pairing during device discovery
+  - Any device on the local network can discover and send commands to the player via mDNS
+  - The protocol is reverse-engineered (no official SDK) and still in alpha
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).

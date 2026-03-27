@@ -69,12 +69,16 @@ pub fn load() -> Session {
     }
 }
 
-pub fn save(session: &Session) {
+/// Save session state. Returns true on success, false on failure.
+pub fn save(session: &Session) -> bool {
     let path = session_path();
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Some(parent) = path.parent()
+        && fs::create_dir_all(parent).is_err()
+    {
+        return false;
     }
-    if let Ok(content) = serde_json::to_string_pretty(session) {
-        let _ = fs::write(&path, content);
-    }
+    let Ok(content) = serde_json::to_string_pretty(session) else {
+        return false;
+    };
+    fs::write(&path, content).is_ok()
 }

@@ -48,7 +48,8 @@ impl AudioCache {
         self.index.read().unwrap_or_else(|e| e.into_inner()).contains_key(track_id)
     }
 
-    pub fn put(&self, track_id: &str, data: &[u8], meta: &TrackMeta) {
+    /// Store audio data. Returns true on success, false on I/O failure.
+    pub fn put(&self, track_id: &str, data: &[u8], meta: &TrackMeta) -> bool {
         let artist = sanitize(meta.artist);
         let album = sanitize(meta.album);
         let num = meta.track_number.unwrap_or(0);
@@ -61,13 +62,19 @@ impl AudioCache {
         };
 
         let dir = self.cache_dir.join(&artist).join(&album);
-        let _ = fs::create_dir_all(&dir);
+        if fs::create_dir_all(&dir).is_err() {
+            return false;
+        }
 
         let audio_path = dir.join(&filename);
-        let _ = fs::write(&audio_path, data);
+        if fs::write(&audio_path, data).is_err() {
+            return false;
+        }
 
         let id_path = audio_path.with_extension("id");
-        let _ = fs::write(&id_path, track_id);
+        if fs::write(&id_path, track_id).is_err() {
+            return false;
+        }
 
         // Update in-memory index
         let rel_path = PathBuf::from(&artist).join(&album).join(&filename);
@@ -75,6 +82,7 @@ impl AudioCache {
             .write()
             .unwrap_or_else(|e| e.into_inner())
             .insert(track_id.to_string(), rel_path);
+        true
     }
 }
 
