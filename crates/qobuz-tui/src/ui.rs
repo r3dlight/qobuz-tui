@@ -509,7 +509,7 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
 
     let np_line = if let Some(title) = &app.player.current_track_title {
         let artist = app.player.current_track_artist.as_deref().unwrap_or("");
-        let quality_str = app.player.current_quality
+        let quality_str = app.player.quality()
             .map(|q| format!("  [{}]", q.label()))
             .unwrap_or_default();
         let queue_info = if app.queue.len() > 1 {
@@ -559,7 +559,7 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
 
     // Seek hint
     if app.player.current_track_title.is_some() {
-        let seekable = if app.player.cached_data.is_some() { "seekable" } else { "streaming" };
+        let seekable = if app.player.is_seekable() { "seekable" } else { "streaming" };
         f.render_widget(
             Paragraph::new(Line::from(Span::styled(format!(" ,/; seek \u{2022} {}", seekable), Style::default().fg(DIM)))),
             inner[2],

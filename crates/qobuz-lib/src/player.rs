@@ -50,9 +50,9 @@ pub struct Player {
     pub current_track_title: Option<String>,
     pub current_track_artist: Option<String>,
     pub current_track_duration: u64,
-    pub current_quality: Option<AudioQuality>,
+    current_quality: Option<AudioQuality>,
     /// Cached audio data for seek support
-    pub cached_data: Option<Vec<u8>>,
+    cached_data: Option<Vec<u8>>,
     // Timing
     play_started_at: Option<Instant>,
     paused_duration: Duration,
@@ -145,6 +145,31 @@ impl Player {
                 self.paused_duration += pause_start.elapsed();
             }
         }
+    }
+
+    /// Mark playback as failed (e.g. download error).
+    pub fn set_error(&mut self) {
+        self.is_loading = false;
+    }
+
+    /// Set the audio quality of the current track.
+    pub fn set_quality(&mut self, quality: Option<AudioQuality>) {
+        self.current_quality = quality;
+    }
+
+    /// Store cached audio data to enable seek on the current track.
+    pub fn enable_seek(&mut self, data: Vec<u8>) {
+        self.cached_data = Some(data);
+    }
+
+    /// Current audio quality, if known.
+    pub fn quality(&self) -> Option<AudioQuality> {
+        self.current_quality
+    }
+
+    /// Whether seek is available (track data is cached).
+    pub fn is_seekable(&self) -> bool {
+        self.cached_data.is_some()
     }
 
     pub fn set_volume(&mut self, vol: f32) {

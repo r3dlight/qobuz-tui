@@ -151,6 +151,16 @@ impl Track {
     }
 }
 
+/// Quality fallback chain for a given preferred format_id.
+pub fn format_fallback_chain(preferred: u32) -> &'static [u32] {
+    match preferred {
+        27 => &[27, 7, 6, 5],
+        7 => &[7, 6, 5],
+        6 => &[6, 5],
+        _ => &[5],
+    }
+}
+
 impl QobuzClient {
     pub fn new(app_id: &str, app_secret: &str) -> Self {
         let raw_client = Client::builder()
@@ -419,6 +429,28 @@ impl QobuzClient {
                 Err(e) => last_err = anyhow!("Read failed: {}", e),
             }
         }
+        Err(last_err)
+    }
+
+    /// Download a full track with automatic quality fallback (27→7→6→5).
+    /// Used for album batch downloads and pre-fetching.
+    pub async fn download_track(&self, track_id: &str, preferred_format: u32) -> Result<Vec<u8>> {
+        let formats = format_fallback_chain(preferred_format);
+        let mut last_err = anyhow!("No format available");
+
+        for &fmt in formats {
+            let url = match self.get_track_url(track_id, fmt).await {
+                Ok(u) => u,
+                Err(_) => continue,
+            };
+            match self.download_audio(&url).await {
+                Ok(data) => return Ok(data),
+                Err(e) => {
+                    last_err = anyhow!("format {}: {}", fmt, e);
+                }
+            }
+        }
+
         Err(last_err)
     }
 

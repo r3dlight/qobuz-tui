@@ -9,7 +9,7 @@ pub mod player;
 pub mod session;
 pub mod stream;
 
-pub use api::{Album, AlbumImage, Artist, Playlist, PlaylistOwner, QobuzClient, SearchResults, Track};
+pub use api::{Album, AlbumImage, Artist, Playlist, PlaylistOwner, QobuzClient, SearchResults, Track, format_fallback_chain};
 pub use cache::{AudioCache, TrackMeta};
 pub use config::Config;
 pub use player::{AudioQuality, Player};

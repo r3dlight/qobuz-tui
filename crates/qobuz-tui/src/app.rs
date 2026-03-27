@@ -5,7 +5,7 @@
 //! The `App` struct owns all UI and domain state. Async operations (API calls,
 //! audio downloads) communicate via [`AppMessage`] through an unbounded channel.
 
-use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
+use qobuz_lib::api::{self, format_fallback_chain, Album, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;
 use qobuz_lib::player::{AudioQuality, Player};
@@ -14,16 +14,6 @@ use qobuz_lib::stream::{self, StreamingBuffer};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
-
-/// Quality fallback chain for a given preferred format_id.
-fn format_fallback_chain(preferred: u32) -> &'static [u32] {
-    match preferred {
-        27 => &[27, 7, 6, 5],
-        7 => &[7, 6, 5],
-        6 => &[6, 5],
-        _ => &[5],
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
@@ -329,7 +319,7 @@ impl App {
             }
             AppMessage::StreamReady(buffer, title, artist, duration, format_id) => {
                 if self.player.play_streaming(buffer, &title, &artist, duration).is_ok() {
-                    self.player.current_quality = AudioQuality::from_format_id(format_id);
+                    self.player.set_quality(AudioQuality::from_format_id(format_id));
                 }
                 // Decoder failure is silent — format fallback will send another StreamReady.
             }
@@ -337,7 +327,7 @@ impl App {
                 self.set_temp_status(msg);
             }
             AppMessage::AudioError(err) => {
-                self.player.is_loading = false;
+                self.player.set_error();
                 self.status_message = Some(format!("Audio error: {}", err));
             }
             AppMessage::AlbumLoaded(album) => {
@@ -374,7 +364,7 @@ impl App {
             }
             AppMessage::StreamCached(data, _track_id) => {
                 // Download finished while streaming — enable seek
-                self.player.cached_data = Some(data);
+                self.player.enable_seek(data);
                 self.set_temp_status("Track cached — seek enabled (,/;)".to_string());
             }
             AppMessage::PlaylistsLoaded(playlists) => {
@@ -743,7 +733,7 @@ impl App {
                     if attempt > 0 {
                         tokio::time::sleep(std::time::Duration::from_secs(2 * attempt as u64)).await;
                     }
-                    match download_track(&api, &track.id, format_id).await {
+                    match api.download_track(&track.id, format_id).await {
                         Ok(data) => {
                             let meta = TrackMeta {
                                 artist: &album_artist,
@@ -997,7 +987,7 @@ impl App {
             let track_num = track.track_number;
             self.next_track_prefetched = true;
             tokio::spawn(async move {
-                if let Ok(data) = download_track(&api, &track_id, format_id).await {
+                if let Ok(data) = api.download_track(&track_id, format_id).await {
                     let meta = TrackMeta {
                         artist: &artist,
                         album: &album,
@@ -1205,27 +1195,3 @@ async fn stream_track(
     Err(last_err)
 }
 
-/// Download a full track (for album batch download, no streaming needed).
-async fn download_track(
-    api: &QobuzClient,
-    track_id: &str,
-    preferred_format: u32,
-) -> Result<Vec<u8>> {
-    let formats = format_fallback_chain(preferred_format);
-    let mut last_err = anyhow::anyhow!("No format available");
-
-    for &fmt in formats {
-        let url = match api.get_track_url(track_id, fmt).await {
-            Ok(u) => u,
-            Err(_) => continue,
-        };
-        match api.download_audio(&url).await {
-            Ok(data) => return Ok(data),
-            Err(e) => {
-                last_err = anyhow::anyhow!("format {}: {}", fmt, e);
-            }
-        }
-    }
-
-    Err(last_err)
-}
