@@ -234,6 +234,11 @@ impl QobuzClient {
 
     /// Search for tracks and albums matching `query`.
     pub async fn search(&self, query: &str, limit: u32) -> Result<SearchResults> {
+        self.search_with_offset(query, limit, 0).await
+    }
+
+    /// Search with pagination offset.
+    pub async fn search_with_offset(&self, query: &str, limit: u32, offset: u32) -> Result<SearchResults> {
         let token = self.require_token()?;
 
         let resp = self
@@ -244,6 +249,7 @@ impl QobuzClient {
             .query(&[
                 ("query", query),
                 ("limit", &limit.to_string()),
+                ("offset", &offset.to_string()),
             ])
             .send()
             .await?;

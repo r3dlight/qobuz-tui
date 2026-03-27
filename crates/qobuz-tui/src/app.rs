@@ -43,6 +43,8 @@ pub enum AppMessage {
     LoginSuccess(String, String, String),
     LoginError(String),
     SearchResults(Vec<Track>, Vec<Album>),
+    /// Appended results from "load more" pagination.
+    SearchMore(Vec<Track>, Vec<Album>),
     SearchError(String),
     FavoritesResults(Vec<Album>),
     FavoritesError(String),
@@ -87,6 +89,8 @@ pub struct App {
     pub search_selected: usize,
     pub search_scroll: usize,
     pub search_mode: SearchMode,
+    search_has_more: bool,
+    search_loading_more: bool,
 
     // Favorites (albums)
     pub favorite_albums: Vec<Album>,
@@ -233,6 +237,8 @@ impl App {
             search_selected: 0,
             search_scroll: 0,
             search_mode: SearchMode::Tracks,
+            search_has_more: false,
+            search_loading_more: false,
             favorite_albums: Vec::new(),
             favorites_selected: 0,
             favorites_scroll: 0,
@@ -300,13 +306,25 @@ impl App {
                 self.login_error = Some(err);
             }
             AppMessage::SearchResults(tracks, albums) => {
+                self.search_has_more = tracks.len() >= Self::SEARCH_PAGE_SIZE
+                    || albums.len() >= Self::SEARCH_PAGE_SIZE;
                 self.search_tracks = tracks;
                 self.search_albums = albums;
                 self.search_selected = 0;
                 self.search_scroll = 0;
+                self.search_loading_more = false;
+                self.clear_status();
+            }
+            AppMessage::SearchMore(tracks, albums) => {
+                self.search_has_more = tracks.len() >= Self::SEARCH_PAGE_SIZE
+                    || albums.len() >= Self::SEARCH_PAGE_SIZE;
+                self.search_tracks.extend(tracks);
+                self.search_albums.extend(albums);
+                self.search_loading_more = false;
                 self.clear_status();
             }
             AppMessage::SearchError(err) => {
+                self.search_loading_more = false;
                 self.set_error_status(format!("Search error: {}", err));
             }
             AppMessage::FavoritesResults(albums) => {
@@ -563,6 +581,10 @@ impl App {
             }
             KeyCode::Down if self.search_selected + 1 < self.current_list_len() => {
                 self.search_selected += 1;
+                // Auto-load more when near the bottom
+                if self.search_selected + 5 >= self.current_list_len() {
+                    self.do_search_more();
+                }
             }
             KeyCode::BackTab => {
                 self.search_mode = match self.search_mode {
@@ -578,6 +600,8 @@ impl App {
                 self.search_albums.clear();
                 self.search_selected = 0;
                 self.search_scroll = 0;
+                self.search_has_more = false;
+                self.search_loading_more = false;
             }
             KeyCode::Backspace => {
                 self.search_query.pop();
@@ -925,17 +949,49 @@ impl App {
         });
     }
 
+    const SEARCH_PAGE_SIZE: usize = 50;
+
     fn do_search(&mut self) {
         let query = self.search_query.clone();
         self.set_status("Searching...".to_string(), false);
+        self.search_has_more = false;
+        self.search_loading_more = false;
         let tx = self.tx.clone();
         let api = self.api.clone();
+        let limit = Self::SEARCH_PAGE_SIZE as u32;
         tokio::spawn(async move {
-            match api.search(&query, 50).await {
+            match api.search(&query, limit).await {
                 Ok(results) => {
                     let tracks = results.tracks.map(|t| t.items).unwrap_or_default();
                     let albums = results.albums.map(|a| a.items).unwrap_or_default();
                     tx.send(AppMessage::SearchResults(tracks, albums)).ok();
+                }
+                Err(e) => { tx.send(AppMessage::SearchError(e.to_string())).ok(); }
+            }
+        });
+    }
+
+    fn do_search_more(&mut self) {
+        if self.search_loading_more || !self.search_has_more || self.search_query.is_empty() {
+            return;
+        }
+        self.search_loading_more = true;
+        let query = self.search_query.clone();
+        let offset = match self.search_mode {
+            SearchMode::Tracks => self.search_tracks.len(),
+            SearchMode::Albums => self.search_albums.len(),
+        };
+        self.set_status(format!("Loading more ({})...", offset), false);
+        let tx = self.tx.clone();
+        let api = self.api.clone();
+        let limit = Self::SEARCH_PAGE_SIZE as u32;
+        let offset = offset as u32;
+        tokio::spawn(async move {
+            match api.search_with_offset(&query, limit, offset).await {
+                Ok(results) => {
+                    let tracks = results.tracks.map(|t| t.items).unwrap_or_default();
+                    let albums = results.albums.map(|a| a.items).unwrap_or_default();
+                    tx.send(AppMessage::SearchMore(tracks, albums)).ok();
                 }
                 Err(e) => { tx.send(AppMessage::SearchError(e.to_string())).ok(); }
             }
