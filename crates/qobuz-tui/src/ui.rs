@@ -250,7 +250,7 @@ fn render_search(f: &mut Frame, app: &mut App, area: Rect) {
         pill(" Albums ", app.search_mode == SearchMode::Albums, BRAND),
     ];
     if let Some(status) = &app.status_message {
-        let c = if status.contains("rror") { RED } else { GOLD };
+        let c = if app.status_is_error { RED } else { GOLD };
         spans.extend([Span::styled("   ", Style::default()), Span::styled(status, Style::default().fg(c))]);
     }
     f.render_widget(Paragraph::new(Line::from(spans)), chunks[0]);
@@ -614,7 +614,7 @@ fn render_help_bar(f: &mut Frame, app: &App, area: Rect) {
 
 fn render_status(f: &mut Frame, app: &App, area: Rect) {
     if let Some(s) = &app.status_message {
-        let c = if s.contains("rror") { RED } else { GOLD };
+        let c = if app.status_is_error { RED } else { GOLD };
         f.render_widget(Paragraph::new(format!(" {}", s)).style(Style::default().fg(c)), area);
     }
 }
@@ -631,8 +631,10 @@ fn row_bg(selected: bool, index: usize) -> Color {
     if selected { ROW_SEL } else if index.is_multiple_of(2) { SURFACE } else { ROW_ALT }
 }
 
+/// Visible rows in a bordered table: area height minus border (2) and header (1).
 fn list_visible_height(area: Rect) -> usize {
-    (area.height as usize).saturating_sub(3)
+    const BORDER_AND_HEADER: usize = 3; // top border + header row + bottom border
+    (area.height as usize).saturating_sub(BORDER_AND_HEADER)
 }
 
 fn panel<S: Into<String>>(title: S) -> Block<'static> {

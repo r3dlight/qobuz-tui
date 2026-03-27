@@ -125,6 +125,7 @@ pub struct App {
 
     // Status
     pub status_message: Option<String>,
+    pub status_is_error: bool,
     status_expires: Option<std::time::Instant>,
 
     // API client
@@ -255,6 +256,7 @@ impl App {
             player,
             cache: AudioCache::new(),
             status_message: None,
+            status_is_error: false,
             status_expires: None,
             api,
             config,
@@ -291,7 +293,7 @@ impl App {
                     self.api.set_token(t.clone());
                 }
                 self.screen = Screen::Main;
-                self.status_message = Some("Logged in successfully".to_string());
+                self.set_temp_status("Logged in successfully".to_string());
             }
             AppMessage::LoginError(err) => {
                 self.login_loading = false;
@@ -302,20 +304,20 @@ impl App {
                 self.search_albums = albums;
                 self.search_selected = 0;
                 self.search_scroll = 0;
-                self.status_message = None;
+                self.clear_status();
             }
             AppMessage::SearchError(err) => {
-                self.status_message = Some(format!("Search error: {}", err));
+                self.set_error_status(format!("Search error: {}", err));
             }
             AppMessage::FavoritesResults(albums) => {
                 self.favorite_albums = albums;
                 self.favorites_selected = 0;
                 self.favorites_scroll = 0;
                 self.favorites_loaded = true;
-                self.status_message = None;
+                self.clear_status();
             }
             AppMessage::FavoritesError(err) => {
-                self.status_message = Some(format!("Favorites error: {}", err));
+                self.set_error_status(format!("Favorites error: {}", err));
             }
             AppMessage::StreamReady(buffer, title, artist, duration, format_id) => {
                 if self.player.play_streaming(buffer, &title, &artist, duration).is_ok() {
@@ -328,7 +330,7 @@ impl App {
             }
             AppMessage::AudioError(err) => {
                 self.player.set_error();
-                self.status_message = Some(format!("Audio error: {}", err));
+                self.set_error_status(format!("Audio error: {}", err));
             }
             AppMessage::AlbumLoaded(album) => {
                 self.album_tracks = album
@@ -340,16 +342,16 @@ impl App {
                 self.album_selected = 0;
                 self.album_scroll = 0;
                 self.screen = Screen::AlbumView;
-                self.status_message = None;
+                self.clear_status();
             }
             AppMessage::AlbumError(err) => {
-                self.status_message = Some(format!("Album error: {}", err));
+                self.set_error_status(format!("Album error: {}", err));
             }
             AppMessage::FavoriteToggled(album_id, added) => {
                 if added {
-                    self.status_message = Some("Added to favorites".to_string());
+                    self.set_temp_status("Added to favorites".to_string());
                 } else {
-                    self.status_message = Some("Removed from favorites".to_string());
+                    self.set_temp_status("Removed from favorites".to_string());
                     // Remove from local list
                     self.favorite_albums.retain(|a| a.id != album_id);
                     if self.favorites_selected > 0
@@ -360,7 +362,7 @@ impl App {
                 }
             }
             AppMessage::FavoriteToggleError(err) => {
-                self.status_message = Some(format!("Favorite error: {}", err));
+                self.set_error_status(format!("Favorite error: {}", err));
             }
             AppMessage::StreamCached(data, _track_id) => {
                 // Download finished while streaming — enable seek
@@ -372,10 +374,10 @@ impl App {
                 self.playlists_selected = 0;
                 self.playlists_scroll = 0;
                 self.playlists_loaded = true;
-                self.status_message = None;
+                self.clear_status();
             }
             AppMessage::PlaylistsError(err) => {
-                self.status_message = Some(format!("Playlists error: {}", err));
+                self.set_error_status(format!("Playlists error: {}", err));
             }
             AppMessage::PlaylistLoaded(playlist) => {
                 self.playlist_tracks = playlist
@@ -387,19 +389,19 @@ impl App {
                 self.playlist_selected = 0;
                 self.playlist_scroll = 0;
                 self.screen = Screen::PlaylistView;
-                self.status_message = None;
+                self.clear_status();
             }
             AppMessage::PlaylistError(err) => {
-                self.status_message = Some(format!("Playlist error: {}", err));
+                self.set_error_status(format!("Playlist error: {}", err));
             }
             AppMessage::DownloadProgress(done, total) => {
-                self.status_message = Some(format!("Downloading album: {}/{} tracks", done, total));
+                self.set_status(format!("Downloading album: {}/{}  tracks", done, total), false);
             }
             AppMessage::DownloadDone => {
-                self.status_message = Some("Album downloaded to cache".to_string());
+                self.set_temp_status("Album downloaded to cache".to_string());
             }
             AppMessage::DownloadError(err) => {
-                self.status_message = Some(format!("Download error: {}", err));
+                self.set_error_status(format!("Download error: {}", err));
             }
         }
     }
@@ -680,11 +682,10 @@ impl App {
         let album_id = album_id.to_string();
         let tx = self.tx.clone();
         let api = self.api.clone();
-        self.status_message = Some(if add {
-            "Adding to favorites...".to_string()
-        } else {
-            "Removing from favorites...".to_string()
-        });
+        self.set_status(
+            if add { "Adding to favorites..." } else { "Removing from favorites..." }.to_string(),
+            false,
+        );
         tokio::spawn(async move {
             let result = if add {
                 api.favorite_add_album(&album_id).await
@@ -709,7 +710,7 @@ impl App {
             .and_then(|a| a.artist.as_ref())
             .map(|a| a.name.clone())
             .unwrap_or_else(|| "Unknown".to_string());
-        self.status_message = Some(format!("Downloading \"{}\"...", album_name));
+        self.set_status(format!("Downloading \"{}\"...", album_name), false);
 
         let tracks = self.album_tracks.clone();
         let total = tracks.len();
@@ -847,7 +848,7 @@ impl App {
             && let Some(data) = self.cache.get(&track_id)
         {
             if let Err(e) = self.player.play_audio(data, &title, &artist, duration) {
-                self.status_message = Some(format!("Playback error: {}", e));
+                self.set_error_status(format!("Playback error: {}", e));
             }
             return;
         }
@@ -880,7 +881,7 @@ impl App {
     }
 
     fn open_album(&mut self, album_id: String) {
-        self.status_message = Some("Loading album...".to_string());
+        self.set_status("Loading album...".to_string(), false);
         let tx = self.tx.clone();
         let api = self.api.clone();
         tokio::spawn(async move {
@@ -920,7 +921,7 @@ impl App {
 
     fn do_search(&mut self) {
         let query = self.search_query.clone();
-        self.status_message = Some("Searching...".to_string());
+        self.set_status("Searching...".to_string(), false);
         let tx = self.tx.clone();
         let api = self.api.clone();
         tokio::spawn(async move {
@@ -936,7 +937,7 @@ impl App {
     }
 
     fn do_load_playlists(&mut self) {
-        self.status_message = Some("Loading playlists...".to_string());
+        self.set_status("Loading playlists...".to_string(), false);
         let tx = self.tx.clone();
         let api = self.api.clone();
         tokio::spawn(async move {
@@ -948,7 +949,7 @@ impl App {
     }
 
     fn open_playlist(&mut self, playlist_id: String) {
-        self.status_message = Some("Loading playlist...".to_string());
+        self.set_status("Loading playlist...".to_string(), false);
         let tx = self.tx.clone();
         let api = self.api.clone();
         tokio::spawn(async move {
@@ -1015,7 +1016,7 @@ impl App {
     }
 
     fn do_load_favorites(&mut self) {
-        self.status_message = Some("Loading favorite albums...".to_string());
+        self.set_status("Loading favorite albums...".to_string(), false);
         let tx = self.tx.clone();
         let api = self.api.clone();
         tokio::spawn(async move {
@@ -1026,10 +1027,31 @@ impl App {
         });
     }
 
+    const STATUS_TIMEOUT_SECS: u64 = 3;
+
+    fn set_status(&mut self, msg: String, is_error: bool) {
+        self.status_message = Some(msg);
+        self.status_is_error = is_error;
+        self.status_expires = None;
+    }
+
     /// Set a temporary status message that auto-clears after 3 seconds.
     fn set_temp_status(&mut self, msg: String) {
         self.status_message = Some(msg);
-        self.status_expires = Some(std::time::Instant::now() + std::time::Duration::from_secs(3));
+        self.status_is_error = false;
+        self.status_expires = Some(
+            std::time::Instant::now() + std::time::Duration::from_secs(Self::STATUS_TIMEOUT_SECS),
+        );
+    }
+
+    fn set_error_status(&mut self, msg: String) {
+        self.set_status(msg, true);
+    }
+
+    fn clear_status(&mut self) {
+        self.status_message = None;
+        self.status_is_error = false;
+        self.status_expires = None;
     }
 
     pub fn tick(&mut self) {
@@ -1037,8 +1059,7 @@ impl App {
         if let Some(expires) = self.status_expires
             && std::time::Instant::now() >= expires
         {
-            self.status_message = None;
-            self.status_expires = None;
+            self.clear_status();
         }
 
         // Pre-fetch next track for gapless playback (15s before end)
@@ -1153,7 +1174,10 @@ async fn stream_track(
         let mut buffer_opt = Some(buffer);
         let mut resp = resp;
         let mut download_ok = true;
-        let threshold = (total_size / 10).clamp(64 * 1024, 256 * 1024) as usize;
+        // Minimum data before starting playback: 10% of file, clamped to 64-256KB
+        const STREAM_MIN_BYTES: u64 = 64 * 1024;
+        const STREAM_MAX_BYTES: u64 = 256 * 1024;
+        let threshold = (total_size / 10).clamp(STREAM_MIN_BYTES, STREAM_MAX_BYTES) as usize;
 
         loop {
             match resp.chunk().await {

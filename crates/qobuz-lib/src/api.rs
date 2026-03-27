@@ -163,12 +163,14 @@ pub fn format_fallback_chain(preferred: u32) -> &'static [u32] {
 
 impl QobuzClient {
     pub fn new(app_id: &str, app_secret: &str) -> Self {
+        // raw_client: no automatic decompression, for audio downloads.
+        // Falls back to default client if builder fails (e.g. TLS init issue).
         let raw_client = Client::builder()
             .no_gzip()
             .no_brotli()
             .no_deflate()
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|_| Client::new());
         Self {
             client: Client::new(),
             raw_client,
