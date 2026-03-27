@@ -102,29 +102,44 @@ impl Read for StreamingBuffer {
 
 impl Seek for StreamingBuffer {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        let new_pos = match pos {
-            SeekFrom::Start(n) => n as i64,
-            SeekFrom::Current(n) => self.position as i64 + n,
+        let base: i64 = match pos {
+            SeekFrom::Start(n) => i64::try_from(n)
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "position overflow"))?,
+            SeekFrom::Current(n) => {
+                let p = i64::try_from(self.position)
+                    .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "position overflow"))?;
+                p.checked_add(n)
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "seek overflow"))?
+            }
             SeekFrom::End(n) => {
-                if self.total_size > 0 {
-                    self.total_size as i64 + n
+                let len = if self.total_size > 0 {
+                    self.total_size
                 } else {
                     let (mutex, _) = &*self.inner;
                     let state = mutex.lock().unwrap_or_else(|e| e.into_inner());
-                    state.data.len() as i64 + n
-                }
+                    state.data.len() as u64
+                };
+                let l = i64::try_from(len)
+                    .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "length overflow"))?;
+                l.checked_add(n)
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "seek overflow"))?
             }
         };
 
-        if new_pos < 0 {
+        if base < 0 {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "seek before start"));
         }
 
-        self.position = new_pos as usize;
+        self.position = usize::try_from(base)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "position overflow"))?;
         Ok(self.position as u64)
     }
 }
 
-// Safety: all shared state is behind Arc<(Mutex, Condvar)>
+// Safety: StreamingBuffer must be Send to pass it from the async download
+// task to the audio thread. All shared data is behind Arc<(Mutex, Condvar)>.
+// The `position` field is only accessed via &mut self (Read/Seek), so no
+// concurrent access is possible once ownership is transferred.
+// Sync is intentionally NOT implemented — StreamingBuffer must not be shared.
+#[allow(unsafe_code)]
 unsafe impl Send for StreamingBuffer {}
-unsafe impl Sync for StreamingBuffer {}

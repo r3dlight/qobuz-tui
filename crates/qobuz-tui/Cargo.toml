@@ -25,3 +25,4 @@ rodio = { version = "0.19", features = ["symphonia-all"] }
 anyhow = "1"
 dirs = "6"
 landlock = "0.4"
+nix = { version = "0.30", features = ["fs"] }

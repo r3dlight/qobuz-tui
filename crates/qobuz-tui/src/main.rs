@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+#![deny(unsafe_code)]
+
 mod app;
 mod sandbox;
 mod ui;
@@ -20,13 +22,11 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 fn main() -> Result<()> {
-    // Suppress ALSA diagnostic messages (e.g. snd_pcm_recover) that would
-    // corrupt the TUI display since they write directly to stderr.
-    //
-    // SAFETY: set_var is unsafe in Rust 2024 because it is not thread-safe.
-    // This is called at the very start of main(), before the tokio runtime
-    // or any other threads are created, so no data race is possible.
-    unsafe { std::env::set_var("ALSA_LOG_LEVEL", "0"); }
+    // Redirect stderr to /dev/null to suppress ALSA diagnostic messages
+    // (e.g. snd_pcm_recover) that write directly to fd 2 and corrupt the TUI.
+    // This must happen before OutputStream::try_default() which initializes ALSA.
+    #[cfg(unix)]
+    redirect_stderr();
 
     let (_stream, stream_handle) = OutputStream::try_default()
         .map_err(|e| anyhow::anyhow!("Failed to open audio output: {}", e))?;
@@ -97,4 +97,15 @@ async fn run_tui(
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
     Ok(())
+}
+
+/// Redirect stderr (fd 2) to /dev/null so that ALSA C library messages
+/// don't corrupt the ratatui alternate screen.
+/// Called once at the start of main() before any threads are spawned.
+/// No unsafe code — uses nix::unistd::dup2_stderr which is a safe wrapper.
+#[cfg(unix)]
+fn redirect_stderr() {
+    if let Ok(devnull) = std::fs::File::open("/dev/null") {
+        let _ = nix::unistd::dup2_stderr(&devnull);
+    }
 }

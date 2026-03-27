@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+#![deny(unsafe_code)]
+
 pub mod api;
 pub mod cache;
 pub mod config;

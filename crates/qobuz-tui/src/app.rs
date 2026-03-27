@@ -806,16 +806,18 @@ impl App {
     pub fn play_next(&mut self) {
         if self.queue_index + 1 < self.queue.len() {
             self.queue_index += 1;
-            let track = self.queue[self.queue_index].clone();
-            self.play_track(track);
+            if let Some(track) = self.queue.get(self.queue_index).cloned() {
+                self.play_track(track);
+            }
         }
     }
 
     pub fn play_previous(&mut self) {
         if self.queue_index > 0 {
             self.queue_index -= 1;
-            let track = self.queue[self.queue_index].clone();
-            self.play_track(track);
+            if let Some(track) = self.queue.get(self.queue_index).cloned() {
+                self.play_track(track);
+            }
         }
     }
 
@@ -1059,8 +1061,9 @@ impl App {
                     // Advance, stop at end
                     if self.queue_index + 1 < self.queue.len() {
                         self.queue_index += 1;
-                        let track = self.queue[self.queue_index].clone();
-                        self.play_track(track);
+                        if let Some(track) = self.queue.get(self.queue_index).cloned() {
+                            self.play_track(track);
+                        }
                     } else {
                         self.player.clear();
                     }
