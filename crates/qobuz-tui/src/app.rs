@@ -647,7 +647,13 @@ impl App {
                     self.play_track(track.clone());
                 }
             }
-            KeyCode::Backspace => self.screen = Screen::Main,
+            KeyCode::Backspace => {
+                self.screen = Screen::Main;
+                self.playlist_tracks.clear();
+                self.playlist_name = None;
+                self.playlist_selected = 0;
+                self.playlist_scroll = 0;
+            }
             _ => {}
         }
     }
