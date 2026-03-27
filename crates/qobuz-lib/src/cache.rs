@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! Local audio file cache organized as `Artist/Album/01 - Title.flac`.
+//!
+//! Each cached file has a sidecar `.id` file containing the Qobuz track ID
+//! for reverse lookup. The in-memory index is rebuilt on startup by scanning
+//! the cache directory.
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

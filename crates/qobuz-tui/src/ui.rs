@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! TUI rendering with ratatui — login screen, tabbed main view, album/playlist
+//! detail views, player bar with progress and quality indicator, and help bar.
+
 use crate::app::{scroll_offset, App, LoginField, Screen, SearchMode, Tab};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};

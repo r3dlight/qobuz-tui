@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! Session persistence — saves and restores play queue, volume, and loop mode
+//! to `~/.config/qobuz-tui/session.json` between app restarts.
+
 use crate::api::Track;
 use serde::{Deserialize, Serialize};
 use std::fs;

@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! Application configuration stored in `~/.config/qobuz-tui/config.toml`.
+//!
+//! Holds Qobuz API credentials, user auth token, and audio quality preference.
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;

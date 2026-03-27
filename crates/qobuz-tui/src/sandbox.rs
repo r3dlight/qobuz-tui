@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! Landlock filesystem sandbox (Linux 5.13+).
+//!
+//! Restricts filesystem access after audio device initialization:
+//! - Read-write: config dir, cache dir, `/tmp`
+//! - Read-only: system libs, audio config, SSL certs, DNS, devices
+//! - Falls back gracefully on unsupported kernels (BestEffort mode).
+
 use landlock::{
     ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr,
     path_beneath_rules,

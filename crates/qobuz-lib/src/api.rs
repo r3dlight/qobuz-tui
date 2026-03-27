@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! Qobuz API client — authentication, search, streaming URLs, favorites, and playlists.
+//!
+//! API credentials (`app_id` and `app_secret`) are automatically extracted from
+//! the Qobuz web player's JavaScript bundles on first launch. The `app_secret`
+//! is reconstructed from base64 fragments hidden in a fake timezone data structure.
+//!
+//! Note: MD5 is used for password hashing and request signing as required by the
+//! Qobuz API protocol. This is not a design choice — the API mandates it.
+
 use anyhow::{anyhow, Result};
 use base64::Engine;
 use regex::Regex;

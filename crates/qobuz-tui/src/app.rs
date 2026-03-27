@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
+//! TUI application state, play queue, input handling, and async message processing.
+//!
+//! The `App` struct owns all UI and domain state. Async operations (API calls,
+//! audio downloads) communicate via [`AppMessage`] through an unbounded channel.
+
 use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;
@@ -370,6 +375,7 @@ impl App {
             AppMessage::StreamCached(data, _track_id) => {
                 // Download finished while streaming — enable seek
                 self.player.cached_data = Some(data);
+                self.set_temp_status("Track cached — seek enabled (,/;)".to_string());
             }
             AppMessage::PlaylistsLoaded(playlists) => {
                 self.playlists = playlists;
