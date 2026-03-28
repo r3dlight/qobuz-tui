@@ -13,7 +13,7 @@ use crate::error::{QobuzError, Result};
 use base64::Engine;
 use regex::Regex;
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const BASE_URL: &str = "https://www.qobuz.com/api.json/0.2";
@@ -43,7 +43,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Track {
     #[serde(deserialize_with = "deserialize_id", default)]
@@ -55,7 +55,7 @@ pub struct Track {
     pub track_number: Option<u32>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Artist {
     #[serde(deserialize_with = "deserialize_id", default)]
@@ -64,7 +64,7 @@ pub struct Artist {
 }
 
 /// Full artist detail with biography and album list.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ArtistDetail {
     #[serde(deserialize_with = "deserialize_id", default)]
@@ -75,20 +75,20 @@ pub struct ArtistDetail {
     pub albums: Option<AlbumList>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Biography {
     pub summary: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AlbumBrief {
     pub title: String,
     pub artist: Option<Artist>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AlbumImage {
     pub small: Option<String>,
@@ -96,7 +96,7 @@ pub struct AlbumImage {
     pub large: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Album {
     #[serde(deserialize_with = "deserialize_id", default)]
@@ -110,21 +110,21 @@ pub struct Album {
     pub image: Option<AlbumImage>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct TrackList {
     pub items: Vec<Track>,
     pub total: u64,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AlbumList {
     pub items: Vec<Album>,
     pub total: u64,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Playlist {
     #[serde(deserialize_with = "deserialize_id", default)]
@@ -136,13 +136,13 @@ pub struct Playlist {
     pub tracks: Option<TrackList>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct PlaylistOwner {
     pub name: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SearchResults {
     pub tracks: Option<TrackList>,
