@@ -244,7 +244,9 @@ pub async fn next_track(state: State<'_, AppState>) -> Result<(), String> {
         let mut idx = AppState::lock(&state.queue_index);
         let loop_mode = *AppState::lock(&state.loop_mode);
 
-        let next = if *idx + 1 < queue.len() {
+        let next = if loop_mode == crate::state::LOOP_TRACK {
+            Some(*idx) // Replay same track
+        } else if *idx + 1 < queue.len() {
             Some(*idx + 1)
         } else if loop_mode == crate::state::LOOP_QUEUE {
             Some(0)
@@ -255,19 +257,17 @@ pub async fn next_track(state: State<'_, AppState>) -> Result<(), String> {
         match next {
             Some(i) => {
                 *idx = i;
-                queue
-                    .get(i)
-                    .map(|t| serde_json::to_string(t).unwrap_or_default())
-                    .unwrap_or_default()
+                match queue.get(i) {
+                    Some(t) => serde_json::to_string(t).map_err(|e| e.to_string())?,
+                    None => return Ok(()),
+                }
             }
             None => return Ok(()),
         }
     };
 
-    if !track_json.is_empty() {
-        let cover = AppState::lock(&state.current_cover_url).clone();
-        play_track(track_json, cover, state).await?;
-    }
+    let cover = AppState::lock(&state.current_cover_url).clone();
+    play_track(track_json, cover, state).await?;
     Ok(())
 }
 
@@ -278,19 +278,17 @@ pub async fn previous_track(state: State<'_, AppState>) -> Result<(), String> {
         let mut idx = AppState::lock(&state.queue_index);
         if *idx > 0 {
             *idx -= 1;
-            queue
-                .get(*idx)
-                .map(|t| serde_json::to_string(t).unwrap_or_default())
-                .unwrap_or_default()
+            match queue.get(*idx) {
+                Some(t) => serde_json::to_string(t).map_err(|e| e.to_string())?,
+                None => return Ok(()),
+            }
         } else {
             return Ok(());
         }
     };
 
-    if !track_json.is_empty() {
-        let cover = AppState::lock(&state.current_cover_url).clone();
-        play_track(track_json, cover, state).await?;
-    }
+    let cover = AppState::lock(&state.current_cover_url).clone();
+    play_track(track_json, cover, state).await?;
     Ok(())
 }
 
