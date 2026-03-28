@@ -1,5 +1,7 @@
 <template>
-  <div v-if="album">
+  <div v-if="album" class="album-view">
+    <div class="album-backdrop" v-if="album.image?.large"
+      :style="{ backgroundImage: `url(${album.image.large})` }"></div>
     <div class="album-header">
       <img v-if="album.image?.large" :src="album.image.large" class="album-art" />
       <div class="placeholder-art" v-else>♫</div>
@@ -46,7 +48,21 @@ function onArtistClick() {
 </script>
 
 <style scoped>
+.album-view { position: relative; }
+.album-backdrop {
+  position: absolute;
+  top: -1.2rem; left: -1.2rem; right: -1.2rem;
+  height: 280px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(60px) saturate(1.5);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
 .album-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 1.5rem;
   margin-bottom: 1.5rem;

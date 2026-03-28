@@ -55,8 +55,11 @@
       </div>
     </div>
 
-    <!-- Right: Queue + Volume -->
+    <!-- Right: Mini + Queue + Volume -->
     <div class="right">
+      <button class="mini-btn" @click="toggleMiniPlayer" title="Mini player">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"/></svg>
+      </button>
       <div class="queue-badge" v-if="state.queue_len > 1">
         <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
         {{ state.queue_index + 1 }} / {{ state.queue_len }}
@@ -97,6 +100,21 @@ async function pollState() {
   try { state.value = await invoke('get_player_state') } catch (_) {}
 }
 async function togglePause() { await invoke('pause') }
+async function toggleMiniPlayer() {
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const { LogicalSize } = await import('@tauri-apps/api/dpi')
+    const win = getCurrentWindow()
+    const size = await win.innerSize()
+    if (size.width > 400) {
+      await win.setSize(new LogicalSize(380, 120))
+      await win.setAlwaysOnTop(true)
+    } else {
+      await win.setSize(new LogicalSize(1200, 800))
+      await win.setAlwaysOnTop(false)
+    }
+  } catch (_) {}
+}
 async function next() { try { await invoke('next_track') } catch (_) {} }
 async function previous() { try { await invoke('previous_track') } catch (_) {} }
 async function shuffle() { await invoke('shuffle_queue') }
@@ -205,6 +223,11 @@ function formatTime(s) {
   color: #aa78ff; background: rgba(170,120,255,0.1);
   padding: 0.15rem 0.4rem; border-radius: 3px;
 }
+.mini-btn {
+  background: none; border: none; color: #9090a8; cursor: pointer;
+  padding: 0.3rem; border-radius: 4px; display: flex; align-items: center;
+}
+.mini-btn:hover { color: #eaeaf0; background: rgba(255,255,255,0.05); }
 .volume { display: flex; align-items: center; gap: 0.3rem; }
 .vol-btn {
   background: none; border: none; color: #9090a8; cursor: pointer;

@@ -25,6 +25,17 @@ pub struct AppState {
     pub loop_mode: Mutex<u8>,
     /// Cover art URL of the currently playing album.
     pub current_cover_url: Mutex<Option<String>>,
+    /// Recently played tracks (last 50).
+    pub recent_tracks: Mutex<Vec<RecentTrack>>,
+}
+
+/// A recently played track with cover art.
+#[derive(Clone, serde::Serialize)]
+pub struct RecentTrack {
+    pub title: String,
+    pub artist: String,
+    pub album_id: String,
+    pub cover_url: Option<String>,
 }
 
 impl AppState {
@@ -44,6 +55,7 @@ impl AppState {
             queue_index: Mutex::new(0),
             loop_mode: Mutex::new(LOOP_OFF),
             current_cover_url: Mutex::new(None),
+            recent_tracks: Mutex::new(Vec::new()),
         }
     }
 

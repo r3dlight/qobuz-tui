@@ -44,6 +44,7 @@ fn main() {
             commands::seek,
             commands::set_volume,
             commands::get_player_state,
+            commands::get_recent,
             commands::shuffle_queue,
             commands::toggle_loop,
             commands::add_favorite,

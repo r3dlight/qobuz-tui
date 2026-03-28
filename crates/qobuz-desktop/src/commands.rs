@@ -199,6 +199,19 @@ pub async fn play_track(
         .play_audio(data, &title, &artist_name, duration)
         .map_err(|e| e.to_string())?;
     player.set_quality(AudioQuality::from_format_id(format_id));
+
+    // Track in recent history
+    let recent = crate::state::RecentTrack {
+        title: title.clone(),
+        artist: artist_name.clone(),
+        album_id: track.album.as_ref().map(|a| a.id.clone()).unwrap_or_default(),
+        cover_url: AppState::lock(&state.current_cover_url).clone(),
+    };
+    let mut history = AppState::lock(&state.recent_tracks);
+    history.retain(|r| r.title != recent.title || r.artist != recent.artist);
+    history.insert(0, recent);
+    history.truncate(50);
+
     Ok(())
 }
 
@@ -321,6 +334,13 @@ pub fn get_player_state(state: State<'_, AppState>) -> PlayerState {
         loop_mode,
         cover_url,
     }
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_recent(state: State<'_, AppState>) -> Vec<crate::state::RecentTrack> {
+    AppState::lock(&state.recent_tracks).clone()
 }
 
 // ── Queue control ────────────────────────────────────────────────────────────

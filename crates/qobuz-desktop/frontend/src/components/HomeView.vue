@@ -18,6 +18,24 @@
       </div>
     </div>
 
+    <!-- Recently Played -->
+    <section v-if="recentTracks.length > 0">
+      <div class="section-header">
+        <h2><span class="section-icon" style="color: #e74c3c">♪</span> Recently Played</h2>
+      </div>
+      <div class="album-row">
+        <div class="album-card" v-for="(track, i) in recentTracks" :key="i"
+          @click="track.album_id && emit('open-album', track.album_id)">
+          <div class="cover-wrapper">
+            <img v-if="track.cover_url" :src="track.cover_url" class="cover" />
+            <div class="placeholder" v-else>♫</div>
+          </div>
+          <div class="card-title">{{ track.title }}</div>
+          <div class="card-artist">{{ track.artist }}</div>
+        </div>
+      </div>
+    </section>
+
     <!-- Sections -->
     <section v-for="section in sections" :key="section.key" v-show="section.items.length > 0">
       <div class="section-header">
@@ -80,6 +98,7 @@ const editorPicks = ref([])
 const bestSellers = ref([])
 const mostStreamed = ref([])
 const genreSections = ref([])
+const recentTracks = ref([])
 const loading = ref(true)
 const error = ref('')
 
@@ -98,6 +117,9 @@ onMounted(() => loadHome())
 async function loadHome() {
   loading.value = true
   error.value = ''
+
+  // Load recent history
+  try { recentTracks.value = await invoke('get_recent') } catch (_) {}
 
   try {
     const [nr, ep, bs, ms] = await Promise.allSettled([
