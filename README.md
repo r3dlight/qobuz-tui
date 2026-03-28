@@ -74,11 +74,22 @@ rustup toolchain install nightly
 
 ## Build
 
+### Terminal UI (default)
+
 ```bash
 cargo build --release
 ```
 
 The binary will be at `./target/release/qobuz-tui`.
+
+### Desktop app (optional, Tauri 2 + Vue.js)
+
+The desktop app is opt-in and not built by default. It requires [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/).
+
+```bash
+cd crates/qobuz-desktop/frontend && npm install && cd ..
+cargo tauri build
+```
 
 ## Usage
 
@@ -202,7 +213,7 @@ Audio cache is stored in `~/.cache/qobuz-tui/`, organized by artist and album:
 
 ## Project structure
 
-Cargo workspace with a reusable library and a TUI binary:
+Cargo workspace with a reusable library, a TUI binary, and an optional desktop app:
 
 ```
 crates/
@@ -221,6 +232,13 @@ crates/
         ├── app.rs           Application state, play queue, input handling
         ├── ui.rs            TUI rendering with ratatui
         └── sandbox.rs       Landlock filesystem sandbox (Linux)
+└── qobuz-desktop/          Optional desktop app (Tauri 2 + Vue.js)
+    ├── src/
+    │   ├── main.rs          Tauri entry point
+    │   ├── commands.rs      Tauri commands (18 endpoints)
+    │   └── state.rs         Shared application state
+    ├── frontend/            Vue.js frontend
+    └── tauri.conf.json      Tauri configuration
 ```
 
 ## Security

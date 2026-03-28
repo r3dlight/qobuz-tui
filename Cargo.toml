@@ -1,3 +1,6 @@
 [workspace]
 members = ["crates/qobuz-lib", "crates/qobuz-tui"]
+# qobuz-desktop is opt-in: build with `cargo tauri build` in crates/qobuz-desktop/
+# Not included in default workspace to avoid pulling Tauri dependencies for TUI users.
+exclude = ["crates/qobuz-desktop"]
 resolver = "3"

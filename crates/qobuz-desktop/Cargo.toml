@@ -1,0 +1,19 @@
+[package]
+name = "qobuz-desktop"
+version = "0.4.0"
+edition = "2024"
+license = "GPL-3.0-only"
+description = "Qobuz desktop music player (Tauri 2 + Vue.js)"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+qobuz-lib = { path = "../qobuz-lib" }
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+rodio = { version = "0.19", features = ["symphonia-all"] }
+anyhow = "1"
