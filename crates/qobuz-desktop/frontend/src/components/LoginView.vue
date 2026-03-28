@@ -46,11 +46,11 @@ async function doLogin() {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: #12121a;
+  background: #1a1a2e;
 }
 .login-card {
-  background: #1e1e2e;
-  border: 1px solid #2a2a3a;
+  background: #262642;
+  border: 1px solid #353555;
   border-radius: 12px;
   padding: 2.5rem;
   width: 380px;
@@ -58,15 +58,15 @@ async function doLogin() {
 }
 h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
 .brand { color: #6495ed; }
-.subtitle { color: #78788c; margin-bottom: 1.5rem; }
+.subtitle { color: #9090a8; margin-bottom: 1.5rem; }
 form { display: flex; flex-direction: column; gap: 0.5rem; text-align: left; }
-label { color: #78788c; font-size: 0.85rem; }
+label { color: #9090a8; font-size: 0.85rem; }
 input {
   padding: 0.7rem;
-  background: #16161f;
-  border: 1px solid #2a2a3a;
+  background: #202038;
+  border: 1px solid #353555;
   border-radius: 6px;
-  color: #e6e6f0;
+  color: #eaeaf0;
   font-size: 0.95rem;
   outline: none;
   margin-bottom: 0.5rem;
@@ -75,7 +75,7 @@ input:focus { border-color: #6495ed; }
 button {
   padding: 0.8rem;
   background: #6495ed;
-  color: #12121a;
+  color: #1a1a2e;
   border: none;
   border-radius: 6px;
   font-size: 1rem;

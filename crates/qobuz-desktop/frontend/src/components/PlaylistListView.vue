@@ -32,15 +32,15 @@ const emit = defineEmits(['open-playlist'])
   align-items: center;
   gap: 1rem;
   padding: 0.8rem 1rem;
-  background: #1e1e2e;
+  background: #262642;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s;
 }
-.playlist-row:hover { background: #252535; }
+.playlist-row:hover { background: #303050; }
 .pl-icon { font-size: 1.5rem; color: #aa78ff; width: 40px; text-align: center; }
-.pl-name { font-weight: 600; color: #e6e6f0; }
-.pl-meta { font-size: 0.8rem; color: #78788c; }
+.pl-name { font-weight: 600; color: #eaeaf0; }
+.pl-meta { font-size: 0.8rem; color: #9090a8; }
 .loading { color: #ffc832; text-align: center; padding: 2rem; }
-.empty { color: #46465a; text-align: center; padding: 2rem; }
+.empty { color: #585875; text-align: center; padding: 2rem; }
 </style>

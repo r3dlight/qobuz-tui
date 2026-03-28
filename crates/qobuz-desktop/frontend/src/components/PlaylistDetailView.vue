@@ -32,19 +32,19 @@ function playAll() { emit('play-tracks', tracks.value, 0) }
 <style scoped>
 .playlist-header { margin-bottom: 1.5rem; }
 h2 { font-size: 1.5rem; margin-bottom: 0.3rem; }
-.meta { color: #78788c; font-size: 0.9rem; margin-bottom: 1rem; }
+.meta { color: #9090a8; font-size: 0.9rem; margin-bottom: 1rem; }
 .actions { display: flex; gap: 0.5rem; }
 .btn {
   padding: 0.5rem 1rem;
-  background: #2a2a3a;
+  background: #353555;
   border: none;
   border-radius: 6px;
-  color: #e6e6f0;
+  color: #eaeaf0;
   cursor: pointer;
   font-size: 0.85rem;
 }
 .btn:hover { background: #3a3a4a; }
-.btn.primary { background: #6495ed; color: #12121a; font-weight: 600; }
+.btn.primary { background: #6495ed; color: #1a1a2e; font-weight: 600; }
 .btn.primary:hover { background: #7ba5f7; }
 .loading { color: #ffc832; text-align: center; padding: 2rem; }
 </style>

@@ -146,7 +146,7 @@ function retry() { loadHome() }
 
 /* Hero */
 .hero {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: linear-gradient(135deg, #252545 0%, #1e3060 50%, #1a4080 100%);
   border-radius: 12px;
   padding: 2rem;
   display: flex;
@@ -162,7 +162,7 @@ function retry() { loadHome() }
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.3rem;
 }
-.hero-content p { color: #9696a8; font-size: 0.95rem; }
+.hero-content p { color: #a8a8be; font-size: 0.95rem; }
 
 .hero-quick { display: flex; gap: 0.6rem; }
 .hero-card {
@@ -174,14 +174,14 @@ function retry() { loadHome() }
 }
 .hero-card:hover { background: rgba(255,255,255,0.1); }
 .hero-cover { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; }
-.hero-card-title { font-size: 0.8rem; font-weight: 600; color: #e6e6f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
-.hero-card-artist { font-size: 0.7rem; color: #9696a8; }
+.hero-card-title { font-size: 0.8rem; font-weight: 600; color: #eaeaf0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+.hero-card-artist { font-size: 0.7rem; color: #a8a8be; }
 
 /* Section headers */
 .section-header { display: flex; justify-content: space-between; align-items: baseline; padding: 0 0.2rem; }
-.section-header h2 { font-size: 1.05rem; font-weight: 700; color: #e6e6f0; display: flex; align-items: center; gap: 0.5rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 700; color: #eaeaf0; display: flex; align-items: center; gap: 0.5rem; }
 .section-icon { font-size: 1rem; }
-.section-count { font-size: 0.75rem; color: #5a5a6e; }
+.section-count { font-size: 0.75rem; color: #707088; }
 
 /* Album row */
 .album-row {
@@ -190,10 +190,10 @@ function retry() { loadHome() }
   overflow-x: auto;
   padding-bottom: 0.5rem;
   scrollbar-width: thin;
-  scrollbar-color: #2a2a3a transparent;
+  scrollbar-color: #353555 transparent;
 }
 .album-row::-webkit-scrollbar { height: 6px; }
-.album-row::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+.album-row::-webkit-scrollbar-thumb { background: #353555; border-radius: 3px; }
 
 .album-card {
   flex: 0 0 160px;
@@ -209,9 +209,9 @@ function retry() { loadHome() }
 }
 .placeholder {
   width: 160px; height: 160px;
-  background: linear-gradient(135deg, #1e1e2e, #252535);
+  background: linear-gradient(135deg, #262642, #303050);
   display: flex; align-items: center; justify-content: center;
-  font-size: 2.5rem; color: #3a3a4e;
+  font-size: 2.5rem; color: #4a4a65;
 }
 .cover-overlay {
   position: absolute; inset: 0;
@@ -224,7 +224,7 @@ function retry() { loadHome() }
   width: 44px; height: 44px;
   background: rgba(255,255,255,0.9);
   border: none; border-radius: 50%;
-  color: #12121a; font-size: 1.2rem;
+  color: #1a1a2e; font-size: 1.2rem;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3);
@@ -234,16 +234,16 @@ function retry() { loadHome() }
 
 .card-title {
   margin-top: 0.5rem;
-  font-size: 0.82rem; font-weight: 600; color: #e6e6f0;
+  font-size: 0.82rem; font-weight: 600; color: #eaeaf0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 160px;
 }
 .card-artist {
-  font-size: 0.75rem; color: #9696a8;
+  font-size: 0.75rem; color: #a8a8be;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 160px;
 }
-.card-year { font-size: 0.7rem; color: #5a5a6e; }
+.card-year { font-size: 0.7rem; color: #707088; }
 
 /* Loading skeleton */
 .loading-screen { padding: 1rem 0; }
@@ -253,14 +253,14 @@ function retry() { loadHome() }
 .skeleton-card { flex: 0 0 160px; }
 .skeleton-cover {
   width: 160px; height: 160px;
-  background: linear-gradient(90deg, #1e1e2e 25%, #252535 50%, #1e1e2e 75%);
+  background: linear-gradient(90deg, #262642 25%, #303050 50%, #262642 75%);
   background-size: 200% 100%;
   border-radius: 8px;
   animation: shimmer 1.5s infinite;
 }
 .skeleton-line {
   height: 10px; border-radius: 4px; margin-top: 0.5rem;
-  background: linear-gradient(90deg, #1e1e2e 25%, #252535 50%, #1e1e2e 75%);
+  background: linear-gradient(90deg, #262642 25%, #303050 50%, #262642 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -291,7 +291,7 @@ function retry() { loadHome() }
 .empty-home {
   text-align: center;
   padding: 3rem;
-  color: #5a5a6e;
+  color: #707088;
   font-size: 0.95rem;
 }
 </style>

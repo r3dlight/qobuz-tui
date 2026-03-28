@@ -72,15 +72,15 @@ function onPlayTrack(index) {
 }
 .search-icon {
   position: absolute; left: 12px;
-  width: 20px; height: 20px; color: #5a5a6e;
+  width: 20px; height: 20px; color: #707088;
 }
 .search-bar input {
   width: 100%;
   padding: 0.8rem 1rem 0.8rem 2.5rem;
-  background: #1e1e2e;
-  border: 1px solid #2a2a3a;
+  background: #262642;
+  border: 1px solid #353555;
   border-radius: 10px;
-  color: #e6e6f0;
+  color: #eaeaf0;
   font-size: 1rem;
   outline: none;
   transition: border-color 0.2s;
@@ -88,21 +88,21 @@ function onPlayTrack(index) {
 .search-bar input:focus { border-color: #6495ed; }
 .result-count {
   position: absolute; right: 12px;
-  font-size: 0.75rem; color: #5a5a6e;
+  font-size: 0.75rem; color: #707088;
 }
 .mode-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .mode-tabs button {
   padding: 0.45rem 1.2rem;
-  background: #1e1e2e;
-  border: 1px solid #2a2a3a;
+  background: #262642;
+  border: 1px solid #353555;
   border-radius: 8px;
-  color: #78788c;
+  color: #9090a8;
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.15s;
 }
 .mode-tabs button:hover { border-color: #3a3a4a; color: #bec0cd; }
-.mode-tabs button.active { background: #6495ed; color: #12121a; border-color: #6495ed; font-weight: 600; }
+.mode-tabs button.active { background: #6495ed; color: #1a1a2e; border-color: #6495ed; font-weight: 600; }
 .count { opacity: 0.7; }
 .loading { display: flex; align-items: center; gap: 0.7rem; color: #ffc832; padding: 2rem; justify-content: center; }
 .spinner {
@@ -112,8 +112,8 @@ function onPlayTrack(index) {
 @keyframes spin { to { transform: rotate(360deg); } }
 .welcome {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 4rem; color: #3a3a4e; gap: 0.5rem;
+  justify-content: center; padding: 4rem; color: #4a4a65; gap: 0.5rem;
 }
-.welcome h2 { color: #5a5a6e; font-size: 1.3rem; }
-.welcome p { color: #3a3a4e; font-size: 0.9rem; }
+.welcome h2 { color: #707088; font-size: 1.3rem; }
+.welcome p { color: #4a4a65; font-size: 0.9rem; }
 </style>

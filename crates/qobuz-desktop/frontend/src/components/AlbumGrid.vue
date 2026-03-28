@@ -28,7 +28,7 @@ const emit = defineEmits(['open'])
   gap: 1rem;
 }
 .album-card {
-  background: #1e1e2e;
+  background: #262642;
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -42,16 +42,16 @@ const emit = defineEmits(['open'])
 .placeholder-cover {
   width: 100%;
   aspect-ratio: 1;
-  background: #2a2a3a;
+  background: #353555;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  color: #46465a;
+  color: #585875;
 }
 .info { padding: 0.7rem; }
-.album-title { font-size: 0.9rem; font-weight: 600; color: #e6e6f0; margin-bottom: 0.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.album-artist { font-size: 0.8rem; color: #9696a8; }
-.album-meta { font-size: 0.75rem; color: #5a5a6e; margin-top: 0.2rem; }
-.empty { color: #46465a; text-align: center; padding: 2rem; }
+.album-title { font-size: 0.9rem; font-weight: 600; color: #eaeaf0; margin-bottom: 0.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.album-artist { font-size: 0.8rem; color: #a8a8be; }
+.album-meta { font-size: 0.75rem; color: #707088; margin-top: 0.2rem; }
+.empty { color: #585875; text-align: center; padding: 2rem; }
 </style>

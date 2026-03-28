@@ -148,11 +148,16 @@ async function removeFavorite(albumId) {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: #12121a;
-  color: #e6e6f0;
+  background: #1a1a2e;
+  color: #eaeaf0;
   overflow: hidden;
   height: 100vh;
 }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a3a52; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4a4a62; }
+
 .app {
   display: flex;
   flex-direction: column;
@@ -162,18 +167,18 @@ body {
   display: flex;
   align-items: center;
   gap: 0;
-  background: #191924;
-  border-bottom: 1px solid #252535;
+  background: #20203a;
+  border-bottom: 1px solid #30304a;
   padding: 0 1rem;
   -webkit-app-region: drag;
 }
 .brand {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #6495ed;
+  color: #7aa5f7;
   padding: 0 1rem 0 0.5rem;
   margin-right: 0.5rem;
-  border-right: 1px solid #252535;
+  border-right: 1px solid #30304a;
   -webkit-app-region: no-drag;
 }
 .tabs button {
@@ -183,7 +188,7 @@ body {
   padding: 0.8rem 1.2rem;
   background: none;
   border: none;
-  color: #5a5a6e;
+  color: #8888a0;
   cursor: pointer;
   font-size: 0.85rem;
   border-bottom: 2px solid transparent;
@@ -191,14 +196,15 @@ body {
   -webkit-app-region: no-drag;
 }
 .tabs button svg { width: 16px; height: 16px; }
-.tabs button:hover { color: #bec0cd; }
+.tabs button:hover { color: #d0d0e0; }
 .tabs button.active {
-  color: #e6e6f0;
-  border-bottom-color: #6495ed;
+  color: #f0f0ff;
+  border-bottom-color: #7aa5f7;
 }
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1.2rem;
+  background: #1a1a2e;
 }
 </style>

@@ -27,15 +27,15 @@ const albums = computed(() => props.artist?.albums?.items || [])
 <style scoped>
 .artist-header { margin-bottom: 1.5rem; }
 h2 { font-size: 1.8rem; margin-bottom: 0.3rem; }
-.meta { color: #78788c; margin-bottom: 0.5rem; }
-.bio { color: #9696a8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1rem; max-width: 600px; }
+.meta { color: #9090a8; margin-bottom: 0.5rem; }
+.bio { color: #a8a8be; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1rem; max-width: 600px; }
 .section-title { color: #6495ed; font-size: 1rem; margin-bottom: 1rem; }
 .btn {
   padding: 0.5rem 1rem;
-  background: #2a2a3a;
+  background: #353555;
   border: none;
   border-radius: 6px;
-  color: #e6e6f0;
+  color: #eaeaf0;
   cursor: pointer;
   font-size: 0.85rem;
   margin-bottom: 1rem;
