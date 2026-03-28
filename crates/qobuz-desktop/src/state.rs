@@ -6,13 +6,17 @@ use qobuz_lib::api::Track;
 use qobuz_lib::cache::AudioCache;
 use qobuz_lib::config::Config;
 use qobuz_lib::player::Player;
-use qobuz_lib::{AudioQuality, QobuzClient};
+use qobuz_lib::QobuzClient;
 use std::sync::Mutex;
 
+/// Loop mode values: 0=Off, 1=Track, 2=Queue
+pub const LOOP_OFF: u8 = 0;
+pub const LOOP_TRACK: u8 = 1;
+pub const LOOP_QUEUE: u8 = 2;
+
 /// Application state shared across Tauri commands.
-/// Wrapped in `Mutex` because Tauri manages state as `State<AppState>`.
 pub struct AppState {
-    pub player: Mutex<Option<Player>>,
+    pub player: Mutex<Player>,
     pub api: Mutex<QobuzClient>,
     pub config: Mutex<Config>,
     pub cache: AudioCache,
@@ -22,7 +26,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(player: Player) -> Self {
         let config = Config::load();
         let mut api = QobuzClient::new(&config.app_id, &config.app_secret);
         if let Some(token) = &config.user_auth_token {
@@ -30,13 +34,13 @@ impl AppState {
         }
 
         Self {
-            player: Mutex::new(None), // Initialized after OutputStream is created
+            player: Mutex::new(player),
             api: Mutex::new(api),
             config: Mutex::new(config),
             cache: AudioCache::new(),
             queue: Mutex::new(Vec::new()),
             queue_index: Mutex::new(0),
-            loop_mode: Mutex::new(0),
+            loop_mode: Mutex::new(LOOP_OFF),
         }
     }
 }
