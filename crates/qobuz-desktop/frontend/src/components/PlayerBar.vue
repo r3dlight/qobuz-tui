@@ -100,20 +100,22 @@ async function pollState() {
   try { state.value = await invoke('get_player_state') } catch (_) {}
 }
 async function togglePause() { await invoke('pause') }
+const miniMode = ref(false)
 async function toggleMiniPlayer() {
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window')
     const { LogicalSize } = await import('@tauri-apps/api/dpi')
     const win = getCurrentWindow()
-    const size = await win.innerSize()
-    if (size.width > 400) {
-      await win.setSize(new LogicalSize(380, 120))
+    if (!miniMode.value) {
+      await win.setSize(new LogicalSize(400, 130))
       await win.setAlwaysOnTop(true)
+      miniMode.value = true
     } else {
       await win.setSize(new LogicalSize(1200, 800))
       await win.setAlwaysOnTop(false)
+      miniMode.value = false
     }
-  } catch (_) {}
+  } catch (e) { console.error('Mini player error:', e) }
 }
 async function next() { try { await invoke('next_track') } catch (_) {} }
 async function previous() { try { await invoke('previous_track') } catch (_) {} }
