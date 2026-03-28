@@ -149,7 +149,6 @@ pub struct SearchResults {
     pub albums: Option<AlbumList>,
 }
 
-
 impl Track {
     /// Artist display name, or "Unknown" if not available.
     pub fn artist_name(&self) -> &str {
@@ -228,10 +227,7 @@ impl QobuzClient {
             .client
             .post(format!("{}/user/login", BASE_URL))
             .header("X-App-Id", &self.app_id)
-            .form(&[
-                ("username", email),
-                ("password", &password_hash),
-            ])
+            .form(&[("username", email), ("password", &password_hash)])
             .send()
             .await?;
 
@@ -258,7 +254,12 @@ impl QobuzClient {
     }
 
     /// Search with pagination offset.
-    pub async fn search_with_offset(&self, query: &str, limit: u32, offset: u32) -> Result<SearchResults> {
+    pub async fn search_with_offset(
+        &self,
+        query: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<SearchResults> {
         let token = self.require_token()?;
 
         let resp = self
@@ -275,12 +276,15 @@ impl QobuzClient {
             .await?;
 
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Search failed".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Search failed".into(),
+            ));
         }
 
         let text = resp.text().await?;
-        let body: serde_json::Value = serde_json::from_str(&text)
-            .map_err(|e| QobuzError::ParseError(format!("{}", e)))?;
+        let body: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| QobuzError::ParseError(format!("{}", e)))?;
 
         // Check for API error response
         if let Some(message) = body.get("message").and_then(|m| m.as_str()) {
@@ -345,7 +349,10 @@ impl QobuzClient {
             .await?;
 
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), format!("Get album {}", album_id)));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                format!("Get album {}", album_id),
+            ));
         }
 
         let body: serde_json::Value = resp.json().await?;
@@ -384,7 +391,9 @@ impl QobuzClient {
             .await?;
 
         let status = resp.status();
-        let bytes = resp.bytes().await
+        let bytes = resp
+            .bytes()
+            .await
             .map_err(|e| QobuzError::Network(format!("getFileUrl: {}", e)))?;
         let text = String::from_utf8_lossy(&bytes);
 
@@ -412,15 +421,15 @@ impl QobuzClient {
             .get(format!("{}/favorite/getUserFavorites", BASE_URL))
             .header("X-App-Id", &self.app_id)
             .header("X-User-Auth-Token", token)
-            .query(&[
-                ("type", "albums"),
-                ("limit", &limit.to_string()),
-            ])
+            .query(&[("type", "albums"), ("limit", &limit.to_string())])
             .send()
             .await?;
 
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Get favorites".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get favorites".into(),
+            ));
         }
 
         let body: serde_json::Value = resp.json().await?;
@@ -507,7 +516,10 @@ impl QobuzClient {
             .send()
             .await?;
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Get artist".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get artist".into(),
+            ));
         }
         let body: serde_json::Value = resp.json().await?;
         serde_json::from_value(body).map_err(|e| QobuzError::ParseError(format!("artist: {}", e)))
@@ -525,7 +537,10 @@ impl QobuzClient {
             .send()
             .await?;
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Add favorite".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Add favorite".into(),
+            ));
         }
         Ok(())
     }
@@ -542,7 +557,10 @@ impl QobuzClient {
             .send()
             .await?;
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Remove favorite".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Remove favorite".into(),
+            ));
         }
         Ok(())
     }
@@ -559,11 +577,14 @@ impl QobuzClient {
             .send()
             .await?;
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Get playlists".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get playlists".into(),
+            ));
         }
         let text = resp.text().await?;
-        let body: serde_json::Value = serde_json::from_str(&text)
-            .map_err(|e| QobuzError::ParseError(e.to_string()))?;
+        let body: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| QobuzError::ParseError(e.to_string()))?;
 
         // The API may return playlists at different paths depending on the response
         let items_val = body
@@ -590,7 +611,10 @@ impl QobuzClient {
                     .as_object()
                     .map(|o| o.keys().map(|k| k.as_str()).collect())
                     .unwrap_or_default();
-                return Err(QobuzError::ParseError(format!("Unexpected keys: [{}]", keys.join(", "))));
+                return Err(QobuzError::ParseError(format!(
+                    "Unexpected keys: [{}]",
+                    keys.join(", ")
+                )));
             }
         };
         Ok(playlists)
@@ -612,7 +636,10 @@ impl QobuzClient {
             .send()
             .await?;
         if !resp.status().is_success() {
-            return Err(QobuzError::HttpStatus(resp.status().as_u16(), "Get playlist".into()));
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get playlist".into(),
+            ));
         }
         let body: serde_json::Value = resp.json().await?;
         serde_json::from_value(body).map_err(|e| QobuzError::ParseError(format!("playlist: {}", e)))
@@ -657,7 +684,10 @@ pub async fn fetch_app_credentials() -> Result<(String, String)> {
     let id_regexes: Vec<Regex> = [
         r#"production[^}]*?appId\s*:\s*"(\d{9,})""#,
         r#"appId\s*[:=]\s*"(\d{9,})""#,
-    ].iter().filter_map(|p| Regex::new(p).ok()).collect();
+    ]
+    .iter()
+    .filter_map(|p| Regex::new(p).ok())
+    .collect();
 
     for url in &bundle_urls {
         let body = match client.get(url).send().await {
@@ -690,13 +720,11 @@ pub async fn fetch_app_credentials() -> Result<(String, String)> {
         }
     }
 
-    let id = app_id.ok_or_else(|| {
-        QobuzError::CredentialExtraction("Could not extract app_id".into())
-    })?;
+    let id = app_id
+        .ok_or_else(|| QobuzError::CredentialExtraction("Could not extract app_id".into()))?;
 
-    let secret = app_secret.ok_or_else(|| {
-        QobuzError::CredentialExtraction("Could not extract app_secret".into())
-    })?;
+    let secret = app_secret
+        .ok_or_else(|| QobuzError::CredentialExtraction("Could not extract app_secret".into()))?;
 
     Ok((id, secret))
 }
@@ -713,7 +741,8 @@ fn extract_secret_from_bundle(bundle: &str) -> Option<String> {
     // We look for the one associated with production
     let seed_re = Regex::new(
         r#"initialSeed\(\s*"([A-Za-z0-9+/=]+)"\s*,\s*[a-zA-Z_.]*\.utimezone\.([a-z]+)\s*\)"#,
-    ).ok()?;
+    )
+    .ok()?;
 
     // Find the production environment seed call
     // Look for "production" context near an initialSeed call

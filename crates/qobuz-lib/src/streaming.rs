@@ -6,7 +6,7 @@
 //! a [`StreamingBuffer`] for immediate playback via a [`StreamListener`] trait.
 //! Frontends (TUI, Tauri, etc.) implement `StreamListener` to receive events.
 
-use crate::api::{format_fallback_chain, QobuzClient};
+use crate::api::{QobuzClient, format_fallback_chain};
 use crate::error::{QobuzError, Result};
 use crate::player::AudioQuality;
 use crate::stream::{self, StreamingBuffer};
@@ -19,7 +19,14 @@ const STREAM_MAX_BYTES: u64 = 256 * 1024;
 /// buffers for playback and status notifications.
 pub trait StreamListener: Send + Sync + 'static {
     /// Called when enough data is buffered to start playback.
-    fn on_stream_ready(&self, buffer: StreamingBuffer, title: String, artist: String, duration: u64, format_id: u32);
+    fn on_stream_ready(
+        &self,
+        buffer: StreamingBuffer,
+        title: String,
+        artist: String,
+        duration: u64,
+        format_id: u32,
+    );
     /// Called when quality falls back to a lower format.
     fn on_quality_fallback(&self, quality_label: &str);
     /// Called when the full download completes (data for caching).
@@ -88,7 +95,13 @@ pub async fn stream_track(
                         && writer.downloaded() >= threshold
                         && let Some(buf) = buffer_opt.take()
                     {
-                        listener.on_stream_ready(buf, title.to_string(), artist.to_string(), duration, fmt);
+                        listener.on_stream_ready(
+                            buf,
+                            title.to_string(),
+                            artist.to_string(),
+                            duration,
+                            fmt,
+                        );
                         sent_buffer = true;
                     }
                 }
@@ -102,9 +115,7 @@ pub async fn stream_track(
         }
         writer.finish();
 
-        if !sent_buffer
-            && let Some(buf) = buffer_opt.take()
-        {
+        if !sent_buffer && let Some(buf) = buffer_opt.take() {
             listener.on_stream_ready(buf, title.to_string(), artist.to_string(), duration, fmt);
         }
 

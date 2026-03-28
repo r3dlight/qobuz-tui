@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 r3dlight
 
-use qobuz_lib::api::{format_fallback_chain, Track, Artist, AlbumBrief};
+use qobuz_lib::api::{AlbumBrief, Artist, Track, format_fallback_chain};
+use qobuz_lib::config::Config;
 use qobuz_lib::player::AudioQuality;
 use qobuz_lib::session::{Session, SessionTrack};
-use qobuz_lib::config::Config;
 
 #[test]
 fn audio_quality_from_format_id() {
     assert_eq!(AudioQuality::from_format_id(5), Some(AudioQuality::Mp3_320));
     assert_eq!(AudioQuality::from_format_id(6), Some(AudioQuality::FlacCd));
-    assert_eq!(AudioQuality::from_format_id(7), Some(AudioQuality::FlacHiRes96));
-    assert_eq!(AudioQuality::from_format_id(27), Some(AudioQuality::FlacHiRes192));
+    assert_eq!(
+        AudioQuality::from_format_id(7),
+        Some(AudioQuality::FlacHiRes96)
+    );
+    assert_eq!(
+        AudioQuality::from_format_id(27),
+        Some(AudioQuality::FlacHiRes192)
+    );
     assert_eq!(AudioQuality::from_format_id(99), None);
     assert_eq!(AudioQuality::from_format_id(0), None);
 }
@@ -93,8 +99,14 @@ fn session_track_preserves_artist_id() {
         title: "T".into(),
         duration: 60,
         track_number: Some(1),
-        performer: Some(Artist { id: "artist-123".into(), name: "A".into() }),
-        album: Some(AlbumBrief { title: "Al".into(), artist: None }),
+        performer: Some(Artist {
+            id: "artist-123".into(),
+            name: "A".into(),
+        }),
+        album: Some(AlbumBrief {
+            title: "Al".into(),
+            artist: None,
+        }),
     };
     let st = SessionTrack::from_track(&track);
     assert_eq!(st.artist_id, "artist-123");
@@ -163,10 +175,16 @@ fn track_format_duration() {
     };
     assert_eq!(track.format_duration(), "3:05");
 
-    let short = Track { duration: 5, ..Default::default() };
+    let short = Track {
+        duration: 5,
+        ..Default::default()
+    };
     assert_eq!(short.format_duration(), "0:05");
 
-    let zero = Track { duration: 0, ..Default::default() };
+    let zero = Track {
+        duration: 0,
+        ..Default::default()
+    };
     assert_eq!(zero.format_duration(), "0:00");
 }
 
@@ -176,7 +194,10 @@ fn track_artist_name_fallback() {
     assert_eq!(no_performer.artist_name(), "Unknown");
 
     let with_performer = Track {
-        performer: Some(Artist { id: String::new(), name: "Queen".into() }),
+        performer: Some(Artist {
+            id: String::new(),
+            name: "Queen".into(),
+        }),
         ..Default::default()
     };
     assert_eq!(with_performer.artist_name(), "Queen");
@@ -188,7 +209,10 @@ fn track_album_title_fallback() {
     assert_eq!(no_album.album_title(), "Unknown");
 
     let with_album = Track {
-        album: Some(AlbumBrief { title: "Jazz".into(), artist: None }),
+        album: Some(AlbumBrief {
+            title: "Jazz".into(),
+            artist: None,
+        }),
         ..Default::default()
     };
     assert_eq!(with_album.album_title(), "Jazz");
@@ -201,7 +225,13 @@ fn make_track(id: &str, title: &str) -> Track {
         title: title.into(),
         duration: 180,
         track_number: Some(1),
-        performer: Some(Artist { id: "a1".into(), name: "Test Artist".into() }),
-        album: Some(AlbumBrief { title: "Test Album".into(), artist: None }),
+        performer: Some(Artist {
+            id: "a1".into(),
+            name: "Test Artist".into(),
+        }),
+        album: Some(AlbumBrief {
+            title: "Test Album".into(),
+            artist: None,
+        }),
     }
 }

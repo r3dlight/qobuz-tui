@@ -6,8 +6,8 @@
 //! - **Cached**: from a `Vec<u8>` in memory (seekable immediately)
 //! - **Streaming**: from a [`StreamingBuffer`] (seekable once download completes)
 
-use crate::stream::StreamingBuffer;
 use crate::error::Result;
+use crate::stream::StreamingBuffer;
 use rodio::{Decoder, Sink, Source};
 use std::io::Cursor;
 use std::time::{Duration, Instant};

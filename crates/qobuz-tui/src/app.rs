@@ -5,6 +5,7 @@
 //! The `App` struct owns all UI and domain state. Async operations (API calls,
 //! audio downloads) communicate via [`AppMessage`] through an unbounded channel.
 
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use qobuz_lib::api::{self, Album, ArtistDetail, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;
@@ -12,7 +13,6 @@ use qobuz_lib::player::{AudioQuality, Player};
 use qobuz_lib::session::{self, SessionTrack};
 use qobuz_lib::stream::StreamingBuffer;
 use qobuz_lib::streaming::StreamListener;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -133,7 +133,6 @@ pub struct App {
     // Player
     pub player: Player,
 
-
     // Cache
     pub cache: AudioCache,
 
@@ -180,11 +179,7 @@ pub enum SearchMode {
 }
 
 impl App {
-    pub fn new(
-        config: Config,
-        player: Player,
-        tx: mpsc::UnboundedSender<AppMessage>,
-    ) -> Self {
+    pub fn new(config: Config, player: Player, tx: mpsc::UnboundedSender<AppMessage>) -> Self {
         let mut api = QobuzClient::new(&config.app_id, &config.app_secret);
         if let Some(token) = &config.user_auth_token {
             api.set_token(token.clone());
@@ -206,10 +201,14 @@ impl App {
             tokio::spawn(async move {
                 match api::fetch_app_credentials().await {
                     Ok((id, secret)) => {
-                        tx_clone.send(AppMessage::CredentialsFetched(id, secret)).ok();
+                        tx_clone
+                            .send(AppMessage::CredentialsFetched(id, secret))
+                            .ok();
                     }
                     Err(e) => {
-                        tx_clone.send(AppMessage::CredentialsError(e.to_string())).ok();
+                        tx_clone
+                            .send(AppMessage::CredentialsError(e.to_string()))
+                            .ok();
                     }
                 }
             });
@@ -368,9 +367,13 @@ impl App {
                 self.set_error_status(format!("Favorites error: {}", err));
             }
             AppMessage::StreamReady(buffer, title, artist, duration, format_id) => {
-                match self.player.play_streaming(buffer, &title, &artist, duration) {
+                match self
+                    .player
+                    .play_streaming(buffer, &title, &artist, duration)
+                {
                     Ok(()) => {
-                        self.player.set_quality(AudioQuality::from_format_id(format_id));
+                        self.player
+                            .set_quality(AudioQuality::from_format_id(format_id));
                         self.stream_fail_count = 0;
                     }
                     Err(_) => {
@@ -379,7 +382,9 @@ impl App {
                         if self.stream_fail_count >= 4 {
                             // All formats exhausted
                             self.player.set_error();
-                            self.set_error_status("Playback failed: no compatible audio format".to_string());
+                            self.set_error_status(
+                                "Playback failed: no compatible audio format".to_string(),
+                            );
                             self.stream_fail_count = 0;
                         }
                     }
@@ -455,10 +460,14 @@ impl App {
                 self.set_error_status(format!("Playlist error: {}", err));
             }
             AppMessage::DownloadProgress(done, total) => {
-                self.set_status(format!("Downloading album: {}/{}  tracks", done, total), false);
+                self.set_status(
+                    format!("Downloading album: {}/{}  tracks", done, total),
+                    false,
+                );
             }
             AppMessage::ArtistLoaded(detail) => {
-                self.artist_albums = detail.albums
+                self.artist_albums = detail
+                    .albums
                     .as_ref()
                     .map(|a| a.items.clone())
                     .unwrap_or_default();
@@ -481,8 +490,7 @@ impl App {
     }
 
     fn is_typing(&self) -> bool {
-        self.screen == Screen::Login
-            || (self.screen == Screen::Main && self.tab == Tab::Search)
+        self.screen == Screen::Login || (self.screen == Screen::Main && self.tab == Tab::Search)
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) {
@@ -514,8 +522,12 @@ impl App {
                         Tab::Favorites => Tab::Playlists,
                         Tab::Playlists => Tab::Search,
                     };
-                    if self.tab == Tab::Favorites && !self.favorites_loaded { self.do_load_favorites(); }
-                    if self.tab == Tab::Playlists && !self.playlists_loaded { self.do_load_playlists(); }
+                    if self.tab == Tab::Favorites && !self.favorites_loaded {
+                        self.do_load_favorites();
+                    }
+                    if self.tab == Tab::Playlists && !self.playlists_loaded {
+                        self.do_load_playlists();
+                    }
                     return;
                 }
                 _ => {}
@@ -548,14 +560,22 @@ impl App {
                 }
                 KeyCode::Char(',') => {
                     if !self.player.seek_backward(10) {
-                        let err = self.player.last_seek_error().unwrap_or("unknown").to_string();
+                        let err = self
+                            .player
+                            .last_seek_error()
+                            .unwrap_or("unknown")
+                            .to_string();
                         self.set_temp_status(format!("Seek: {}", err));
                     }
                     return;
                 }
                 KeyCode::Char(';') => {
                     if !self.player.seek_forward(10) {
-                        let err = self.player.last_seek_error().unwrap_or("unknown").to_string();
+                        let err = self
+                            .player
+                            .last_seek_error()
+                            .unwrap_or("unknown")
+                            .to_string();
                         self.set_temp_status(format!("Seek: {}", err));
                     }
                     return;
@@ -571,7 +591,6 @@ impl App {
             Screen::PlaylistView => self.handle_playlist_view_key(key),
             Screen::ArtistView => self.handle_artist_key(key),
         }
-
     }
 
     fn handle_login_key(&mut self, key: KeyEvent) {
@@ -802,8 +821,12 @@ impl App {
         let api = self.api.clone();
         tokio::spawn(async move {
             match api.get_artist(&artist_id).await {
-                Ok(detail) => { tx.send(AppMessage::ArtistLoaded(detail)).ok(); }
-                Err(e) => { tx.send(AppMessage::ArtistError(e.to_string())).ok(); }
+                Ok(detail) => {
+                    tx.send(AppMessage::ArtistLoaded(detail)).ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::ArtistError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -813,7 +836,12 @@ impl App {
         let tx = self.tx.clone();
         let api = self.api.clone();
         self.set_status(
-            if add { "Adding to favorites..." } else { "Removing from favorites..." }.to_string(),
+            if add {
+                "Adding to favorites..."
+            } else {
+                "Removing from favorites..."
+            }
+            .to_string(),
             false,
         );
         tokio::spawn(async move {
@@ -823,8 +851,12 @@ impl App {
                 api.favorite_remove_album(&album_id).await
             };
             match result {
-                Ok(()) => { tx.send(AppMessage::FavoriteToggled(album_id, add)).ok(); }
-                Err(e) => { tx.send(AppMessage::FavoriteToggleError(e.to_string())).ok(); }
+                Ok(()) => {
+                    tx.send(AppMessage::FavoriteToggled(album_id, add)).ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::FavoriteToggleError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -833,7 +865,11 @@ impl App {
         if self.album_tracks.is_empty() {
             return;
         }
-        let album_name = self.album.as_ref().map(|a| a.title.clone()).unwrap_or_default();
+        let album_name = self
+            .album
+            .as_ref()
+            .map(|a| a.title.clone())
+            .unwrap_or_default();
         let album_artist = self
             .album
             .as_ref()
@@ -886,8 +922,10 @@ impl App {
             tx.send(AppMessage::DownloadDone).ok();
             if !failed_names.is_empty() {
                 tx.send(AppMessage::DownloadError(format!(
-                    "Failed: {}", failed_names.join(", ")
-                ))).ok();
+                    "Failed: {}",
+                    failed_names.join(", ")
+                )))
+                .ok();
             }
         });
     }
@@ -980,7 +1018,11 @@ impl App {
         let listener = TuiStreamListener { tx: tx.clone() };
 
         tokio::spawn(async move {
-            match qobuz_lib::stream_track(&api, &track_id, format_id, &title, &artist, duration, &listener).await {
+            match qobuz_lib::stream_track(
+                &api, &track_id, format_id, &title, &artist, duration, &listener,
+            )
+            .await
+            {
                 Ok(data) => {
                     let meta = TrackMeta {
                         artist: &artist,
@@ -1004,8 +1046,12 @@ impl App {
         let api = self.api.clone();
         tokio::spawn(async move {
             match api.get_album(&album_id).await {
-                Ok(album) => { tx.send(AppMessage::AlbumLoaded(album)).ok(); }
-                Err(e) => { tx.send(AppMessage::AlbumError(e.to_string())).ok(); }
+                Ok(album) => {
+                    tx.send(AppMessage::AlbumLoaded(album)).ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::AlbumError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -1031,8 +1077,13 @@ impl App {
         tokio::spawn(async move {
             let mut client = QobuzClient::new(&app_id, &app_secret);
             match client.login(&email, &password).await {
-                Ok(token) => { tx.send(AppMessage::LoginSuccess(token, app_id, app_secret)).ok(); }
-                Err(e) => { tx.send(AppMessage::LoginError(e.to_string())).ok(); }
+                Ok(token) => {
+                    tx.send(AppMessage::LoginSuccess(token, app_id, app_secret))
+                        .ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::LoginError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -1054,7 +1105,9 @@ impl App {
                     let albums = results.albums.map(|a| a.items).unwrap_or_default();
                     tx.send(AppMessage::SearchResults(tracks, albums)).ok();
                 }
-                Err(e) => { tx.send(AppMessage::SearchError(e.to_string())).ok(); }
+                Err(e) => {
+                    tx.send(AppMessage::SearchError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -1081,7 +1134,9 @@ impl App {
                     let albums = results.albums.map(|a| a.items).unwrap_or_default();
                     tx.send(AppMessage::SearchMore(tracks, albums)).ok();
                 }
-                Err(e) => { tx.send(AppMessage::SearchError(e.to_string())).ok(); }
+                Err(e) => {
+                    tx.send(AppMessage::SearchError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -1092,8 +1147,12 @@ impl App {
         let api = self.api.clone();
         tokio::spawn(async move {
             match api.get_user_playlists(500).await {
-                Ok(playlists) => { tx.send(AppMessage::PlaylistsLoaded(playlists)).ok(); }
-                Err(e) => { tx.send(AppMessage::PlaylistsError(e.to_string())).ok(); }
+                Ok(playlists) => {
+                    tx.send(AppMessage::PlaylistsLoaded(playlists)).ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::PlaylistsError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -1104,12 +1163,15 @@ impl App {
         let api = self.api.clone();
         tokio::spawn(async move {
             match api.get_playlist(&playlist_id).await {
-                Ok(pl) => { tx.send(AppMessage::PlaylistLoaded(pl)).ok(); }
-                Err(e) => { tx.send(AppMessage::PlaylistError(e.to_string())).ok(); }
+                Ok(pl) => {
+                    tx.send(AppMessage::PlaylistLoaded(pl)).ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::PlaylistError(e.to_string())).ok();
+                }
             }
         });
     }
-
 
     /// Pre-fetch next track for gapless playback (~15s before end).
     fn prefetch_next(&mut self) {
@@ -1150,9 +1212,8 @@ impl App {
                         cache.put(&track_id, &data, &meta);
                     }
                     Err(e) => {
-                        tx.send(AppMessage::StatusMessage(
-                            format!("Prefetch failed: {}", e),
-                        )).ok();
+                        tx.send(AppMessage::StatusMessage(format!("Prefetch failed: {}", e)))
+                            .ok();
                     }
                 }
             });
@@ -1179,8 +1240,12 @@ impl App {
         let api = self.api.clone();
         tokio::spawn(async move {
             match api.get_favorite_albums(500).await {
-                Ok(albums) => { tx.send(AppMessage::FavoritesResults(albums)).ok(); }
-                Err(e) => { tx.send(AppMessage::FavoritesError(e.to_string())).ok(); }
+                Ok(albums) => {
+                    tx.send(AppMessage::FavoritesResults(albums)).ok();
+                }
+                Err(e) => {
+                    tx.send(AppMessage::FavoritesError(e.to_string())).ok();
+                }
             }
         });
     }
@@ -1284,11 +1349,27 @@ struct TuiStreamListener {
 }
 
 impl StreamListener for TuiStreamListener {
-    fn on_stream_ready(&self, buffer: StreamingBuffer, title: String, artist: String, duration: u64, format_id: u32) {
-        self.tx.send(AppMessage::StreamReady(buffer, title, artist, duration, format_id)).ok();
+    fn on_stream_ready(
+        &self,
+        buffer: StreamingBuffer,
+        title: String,
+        artist: String,
+        duration: u64,
+        format_id: u32,
+    ) {
+        self.tx
+            .send(AppMessage::StreamReady(
+                buffer, title, artist, duration, format_id,
+            ))
+            .ok();
     }
     fn on_quality_fallback(&self, quality_label: &str) {
-        self.tx.send(AppMessage::StatusMessage(format!("Quality fallback: {}", quality_label))).ok();
+        self.tx
+            .send(AppMessage::StatusMessage(format!(
+                "Quality fallback: {}",
+                quality_label
+            )))
+            .ok();
     }
     fn on_stream_complete(&self, data: Vec<u8>, track_id: String) {
         self.tx.send(AppMessage::StreamCached(data, track_id)).ok();
@@ -1297,4 +1378,3 @@ impl StreamListener for TuiStreamListener {
         self.tx.send(AppMessage::AudioError(err)).ok();
     }
 }
-

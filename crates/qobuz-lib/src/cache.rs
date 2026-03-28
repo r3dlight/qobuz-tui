@@ -56,7 +56,10 @@ impl AudioCache {
 
     /// Check if a track is in the cache index (without reading the file).
     pub fn has(&self, track_id: &str) -> bool {
-        self.index.read().unwrap_or_else(|e| e.into_inner()).contains_key(track_id)
+        self.index
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains_key(track_id)
     }
 
     /// Store audio data. Returns true on success, false on I/O failure.

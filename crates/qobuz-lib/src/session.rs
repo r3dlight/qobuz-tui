@@ -37,7 +37,11 @@ impl SessionTrack {
             id: t.id.clone(),
             title: t.title.clone(),
             artist: t.artist_name().to_string(),
-            artist_id: t.performer.as_ref().map(|a| a.id.clone()).unwrap_or_default(),
+            artist_id: t
+                .performer
+                .as_ref()
+                .map(|a| a.id.clone())
+                .unwrap_or_default(),
             album: t.album_title().to_string(),
             duration: t.duration,
             track_number: t.track_number,

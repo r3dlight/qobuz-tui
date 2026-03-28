@@ -8,8 +8,7 @@
 //! - Falls back gracefully on unsupported kernels (BestEffort mode).
 
 use landlock::{
-    ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr,
-    path_beneath_rules,
+    ABI, Access, AccessFs, Ruleset, RulesetAttr, RulesetCreatedAttr, path_beneath_rules,
 };
 
 /// Apply a Landlock sandbox restricting filesystem access.

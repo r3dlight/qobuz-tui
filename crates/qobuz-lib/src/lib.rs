@@ -4,19 +4,22 @@
 
 pub mod api;
 pub mod cache;
-pub mod error;
 pub mod config;
+pub mod error;
 pub mod player;
 pub mod queue;
 pub mod session;
 pub mod stream;
 pub mod streaming;
 
-pub use api::{Album, AlbumImage, Artist, ArtistDetail, Playlist, PlaylistOwner, QobuzClient, SearchResults, Track, format_fallback_chain};
+pub use api::{
+    Album, AlbumImage, Artist, ArtistDetail, Playlist, PlaylistOwner, QobuzClient, SearchResults,
+    Track, format_fallback_chain,
+};
 pub use cache::{AudioCache, TrackMeta};
-pub use error::QobuzError;
 pub use config::Config;
+pub use error::QobuzError;
 pub use player::{AudioQuality, Player};
 pub use queue::shuffle;
-pub use stream::{new_streaming_pair, StreamingBuffer, StreamWriter};
+pub use stream::{StreamWriter, StreamingBuffer, new_streaming_pair};
 pub use streaming::{StreamListener, stream_track};

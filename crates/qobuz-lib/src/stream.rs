@@ -40,8 +40,14 @@ pub fn new_streaming_pair(total_size: u64) -> (StreamWriter, StreamingBuffer) {
     ));
 
     (
-        StreamWriter { inner: inner.clone() },
-        StreamingBuffer { inner, position: 0, total_size },
+        StreamWriter {
+            inner: inner.clone(),
+        },
+        StreamingBuffer {
+            inner,
+            position: 0,
+            total_size,
+        },
     )
 }
 
@@ -86,8 +92,7 @@ impl Read for StreamingBuffer {
             let available = state.data.len().saturating_sub(self.position);
             if available > 0 {
                 let to_read = buf.len().min(available);
-                buf[..to_read]
-                    .copy_from_slice(&state.data[self.position..self.position + to_read]);
+                buf[..to_read].copy_from_slice(&state.data[self.position..self.position + to_read]);
                 self.position += to_read;
                 return Ok(to_read);
             }
@@ -106,8 +111,9 @@ impl Seek for StreamingBuffer {
             SeekFrom::Start(n) => i64::try_from(n)
                 .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "position overflow"))?,
             SeekFrom::Current(n) => {
-                let p = i64::try_from(self.position)
-                    .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "position overflow"))?;
+                let p = i64::try_from(self.position).map_err(|_| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "position overflow")
+                })?;
                 p.checked_add(n)
                     .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "seek overflow"))?
             }
@@ -127,7 +133,10 @@ impl Seek for StreamingBuffer {
         };
 
         if base < 0 {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "seek before start"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "seek before start",
+            ));
         }
 
         self.position = usize::try_from(base)

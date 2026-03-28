@@ -8,14 +8,14 @@ mod ui;
 
 use anyhow::Result;
 use app::{App, AppMessage};
+use crossterm::ExecutableCommand;
 use crossterm::event::{self, Event};
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use crossterm::ExecutableCommand;
 use qobuz_lib::{Config, Player};
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 use rodio::{OutputStream, Sink};
 use std::io::stdout;
 use std::time::Duration;
@@ -53,10 +53,7 @@ fn main() -> Result<()> {
     })
 }
 
-async fn run_tui(
-    mut app: App,
-    mut rx: mpsc::UnboundedReceiver<AppMessage>,
-) -> Result<()> {
+async fn run_tui(mut app: App, mut rx: mpsc::UnboundedReceiver<AppMessage>) -> Result<()> {
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
 
