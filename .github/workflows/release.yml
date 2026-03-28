@@ -99,6 +99,12 @@ jobs:
         with:
           workspaces: crates/qobuz-desktop
 
+      - name: Generate .ico from PNG
+        shell: pwsh
+        run: |
+          choco install imagemagick -y --no-progress
+          magick crates/qobuz-desktop/icons/icon.png -define icon:auto-resize=256,128,64,48,32,16 crates/qobuz-desktop/icons/icon.ico
+
       - name: Install frontend deps
         run: cd crates/qobuz-desktop/frontend && npm install
 
@@ -136,6 +142,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates/qobuz-desktop
+
+      - name: Generate .icns from PNG
+        run: |
+          mkdir -p icon.iconset
+          for size in 16 32 64 128 256 512; do
+            sips -z $size $size crates/qobuz-desktop/icons/icon.png --out icon.iconset/icon_${size}x${size}.png
+          done
+          for size in 32 64 256 512; do
+            half=$((size / 2))
+            cp icon.iconset/icon_${size}x${size}.png icon.iconset/icon_${half}x${half}@2x.png
+          done
+          iconutil -c icns icon.iconset -o crates/qobuz-desktop/icons/icon.icns
 
       - name: Install frontend deps
         run: cd crates/qobuz-desktop/frontend && npm install
