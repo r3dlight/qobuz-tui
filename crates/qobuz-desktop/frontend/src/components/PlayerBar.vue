@@ -115,7 +115,7 @@ async function toggleMiniPlayer() {
       await win.setAlwaysOnTop(false)
       miniMode.value = false
     }
-  } catch (e) { console.error('Mini player error:', e) }
+  } catch (_) {}
 }
 async function next() { try { await invoke('next_track') } catch (_) {} }
 async function previous() { try { await invoke('previous_track') } catch (_) {} }
