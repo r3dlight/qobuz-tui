@@ -7,9 +7,9 @@
 //! Frontends (TUI, Tauri, etc.) implement `StreamListener` to receive events.
 
 use crate::api::{format_fallback_chain, QobuzClient};
+use crate::error::{QobuzError, Result};
 use crate::player::AudioQuality;
 use crate::stream::{self, StreamingBuffer};
-use anyhow::Result;
 
 /// Minimum data before starting playback: 10% of file, clamped to 64-256KB.
 const STREAM_MIN_BYTES: u64 = 64 * 1024;
@@ -40,7 +40,7 @@ pub async fn stream_track(
     listener: &dyn StreamListener,
 ) -> Result<Vec<u8>> {
     let formats = format_fallback_chain(preferred_format);
-    let mut last_err = anyhow::anyhow!("No format available");
+    let mut last_err = QobuzError::NoFormatAvailable;
     let mut tried_first = false;
 
     for &fmt in formats {
@@ -63,11 +63,11 @@ pub async fn stream_track(
         let resp = match api.raw_client().get(&url).send().await {
             Ok(r) if r.status().is_success() => r,
             Ok(r) => {
-                last_err = anyhow::anyhow!("HTTP {}", r.status());
+                last_err = QobuzError::HttpStatus(r.status().as_u16(), String::new());
                 continue;
             }
             Err(e) => {
-                last_err = anyhow::anyhow!("{}", e);
+                last_err = QobuzError::Network(e.to_string());
                 continue;
             }
         };
@@ -94,7 +94,7 @@ pub async fn stream_track(
                 }
                 Ok(None) => break,
                 Err(e) => {
-                    last_err = anyhow::anyhow!("Download: {}", e);
+                    last_err = QobuzError::DownloadFailed(e.to_string());
                     download_ok = false;
                     break;
                 }

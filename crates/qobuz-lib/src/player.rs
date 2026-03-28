@@ -7,7 +7,7 @@
 //! - **Streaming**: from a [`StreamingBuffer`] (seekable once download completes)
 
 use crate::stream::StreamingBuffer;
-use anyhow::Result;
+use crate::error::Result;
 use rodio::{Decoder, Sink, Source};
 use std::io::Cursor;
 use std::time::{Duration, Instant};

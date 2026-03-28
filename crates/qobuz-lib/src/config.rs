@@ -4,7 +4,7 @@
 //!
 //! Holds Qobuz API credentials, user auth token, and audio quality preference.
 
-use anyhow::Result;
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
