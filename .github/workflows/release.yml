@@ -12,8 +12,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
-    name: Build and release
+  # ── TUI (Linux only) ─────────────────────────────────────────────────────
+  tui-linux:
+    name: TUI — Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,25 +23,170 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build release binary
-        run: cargo build --release
-
-      - name: Install cargo-deb
-        run: cargo install cargo-deb
+      - name: Build TUI
+        run: cargo build --release -p qobuz-tui
 
       - name: Build .deb
-        run: cargo deb -p qobuz-tui
+        run: |
+          cargo install cargo-deb
+          cargo deb -p qobuz-tui
 
       - name: Prepare assets
         run: |
           cp target/release/qobuz-tui qobuz-tui-linux-x86_64
           cp target/debian/*.deb .
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-linux
+          path: |
+            qobuz-tui-linux-x86_64
+            *.deb
+            PKGBUILD
+
+  # ── Desktop — Linux (.deb + .rpm + .AppImage) ────────────────────────────
+  desktop-linux:
+    name: Desktop — Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libwebkit2gtk-4.1-dev \
+            libappindicator3-dev librsvg2-dev patchelf libssl-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/qobuz-desktop
+
+      - name: Install frontend deps
+        run: cd crates/qobuz-desktop/frontend && npm install
+
+      - name: Build frontend
+        run: cd crates/qobuz-desktop/frontend && npm run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri (deb + rpm + AppImage)
+        run: cd crates/qobuz-desktop && cargo tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp crates/qobuz-desktop/target/release/bundle/deb/*.deb dist/ 2>/dev/null || true
+          cp crates/qobuz-desktop/target/release/bundle/rpm/*.rpm dist/ 2>/dev/null || true
+          cp crates/qobuz-desktop/target/release/bundle/appimage/*.AppImage dist/ 2>/dev/null || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux
+          path: dist/*
+
+  # ── Desktop — Windows ────────────────────────────────────────────────────
+  desktop-windows:
+    name: Desktop — Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/qobuz-desktop
+
+      - name: Install frontend deps
+        run: cd crates/qobuz-desktop/frontend && npm install
+
+      - name: Build frontend
+        run: cd crates/qobuz-desktop/frontend && npm run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri (MSI + NSIS)
+        run: cd crates/qobuz-desktop && cargo tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp crates/qobuz-desktop/target/release/bundle/msi/*.msi dist/ 2>/dev/null || true
+          cp crates/qobuz-desktop/target/release/bundle/nsis/*.exe dist/ 2>/dev/null || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows
+          path: dist/*
+
+  # ── Desktop — macOS ──────────────────────────────────────────────────────
+  desktop-macos:
+    name: Desktop — macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/qobuz-desktop
+
+      - name: Install frontend deps
+        run: cd crates/qobuz-desktop/frontend && npm install
+
+      - name: Build frontend
+        run: cd crates/qobuz-desktop/frontend && npm run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri (.dmg + .app)
+        run: cd crates/qobuz-desktop && cargo tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp crates/qobuz-desktop/target/release/bundle/dmg/*.dmg dist/ 2>/dev/null || true
+          cp crates/qobuz-desktop/target/release/bundle/macos/*.app.tar.gz dist/ 2>/dev/null || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos
+          path: dist/*
+
+  # ── Publish GitHub Release ───────────────────────────────────────────────
+  publish:
+    name: Publish Release
+    needs: [tui-linux, desktop-linux, desktop-windows, desktop-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect all files
+        run: |
+          mkdir -p release
+          cp artifacts/tui-linux/* release/ 2>/dev/null || true
+          cp artifacts/desktop-linux/* release/ 2>/dev/null || true
+          cp artifacts/desktop-windows/* release/ 2>/dev/null || true
+          cp artifacts/desktop-macos/* release/ 2>/dev/null || true
+          ls -la release/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: |
-            qobuz-tui-linux-x86_64
-            *.deb
-            PKGBUILD
+          files: release/*
