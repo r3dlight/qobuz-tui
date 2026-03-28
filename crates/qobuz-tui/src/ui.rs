@@ -55,6 +55,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         Screen::Main => render_main(f, app),
         Screen::AlbumView => render_album(f, app),
         Screen::PlaylistView => render_playlist_view(f, app),
+        Screen::ArtistView => render_artist(f, app),
     }
 }
 
@@ -446,6 +447,47 @@ fn render_playlist_view(f: &mut Frame, app: &mut App) {
     render_help_bar(f, app, chunks[4]);
 }
 
+fn render_artist(f: &mut Frame, app: &mut App) {
+    let area = f.area();
+    let has_status = app.status_message.is_some();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(5),
+            Constraint::Length(if has_status { 1 } else { 0 }),
+            Constraint::Min(5),
+            Constraint::Length(5),
+            Constraint::Length(1),
+        ])
+        .split(area);
+
+    if let Some(artist) = &app.artist {
+        let bio = artist.biography.as_ref()
+            .and_then(|b| b.summary.as_deref())
+            .unwrap_or("");
+        let albums_count = artist.albums_count.unwrap_or(0);
+        f.render_widget(
+            Paragraph::new(vec![
+                Line::from(""),
+                Line::from(Span::styled(&artist.name, Style::default().fg(WHITE).add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled(format!("{} albums", albums_count), Style::default().fg(DIM))),
+            ])
+            .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(PURPLE)).style(Style::default().bg(SURFACE_2))
+                .title(Span::styled(" \u{25C0} Backspace ", Style::default().fg(DIM)))
+                .title_bottom(if bio.is_empty() { Line::from("") } else { Line::from(Span::styled(format!(" {} ", &bio[..bio.len().min(80)]), Style::default().fg(MUTED))) })),
+            chunks[0],
+        );
+    }
+
+    render_status(f, app, chunks[1]);
+
+    let v = list_visible_height(chunks[2]);
+    app.artist_scroll = scroll_offset(app.artist_selected, app.artist_scroll, v);
+    render_album_list(f, &app.artist_albums, app.artist_selected, app.artist_scroll, chunks[2]);
+    render_player_bar(f, app, chunks[3]);
+    render_help_bar(f, app, chunks[4]);
+}
+
 fn render_album(f: &mut Frame, app: &mut App) {
     let area = f.area();
     let has_status = app.status_message.is_some();
@@ -595,8 +637,9 @@ fn render_help_bar(f: &mut Frame, app: &App, area: Rect) {
             Tab::Favorites => vec![("Enter", "Open"), ("x", "Unfav"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
             Tab::Playlists => vec![("Enter", "Open"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
         },
-        Screen::AlbumView => vec![("Enter", "Play"), ("d", "DL"), ("f", "Fav"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
+        Screen::AlbumView => vec![("Enter", "Play"), ("a", "Artist"), ("d", "DL"), ("f", "Fav"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("Esc", "Quit")],
         Screen::PlaylistView => vec![("Enter", "Play"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
+        Screen::ArtistView => vec![("Enter", "Open album"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
         Screen::Login => return,
     };
     let spans: Vec<Span> = h.iter().enumerate().flat_map(|(i, (k, a))| {

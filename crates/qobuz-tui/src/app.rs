@@ -5,7 +5,7 @@
 //! The `App` struct owns all UI and domain state. Async operations (API calls,
 //! audio downloads) communicate via [`AppMessage`] through an unbounded channel.
 
-use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
+use qobuz_lib::api::{self, Album, ArtistDetail, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;
 use qobuz_lib::player::{AudioQuality, Player};
@@ -21,6 +21,7 @@ pub enum Screen {
     Main,
     AlbumView,
     PlaylistView,
+    ArtistView,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,6 +61,8 @@ pub enum AppMessage {
     DownloadProgress(usize, usize),
     DownloadDone,
     DownloadError(String),
+    ArtistLoaded(ArtistDetail),
+    ArtistError(String),
     /// Stream download completed — enable seek on current track
     StreamCached(Vec<u8>, String), // data, track_id
     FavoriteToggled(String, bool),
@@ -104,6 +107,12 @@ pub struct App {
     pub album_tracks: Vec<Track>,
     pub album_selected: usize,
     pub album_scroll: usize,
+
+    // Artist view
+    pub artist: Option<ArtistDetail>,
+    pub artist_albums: Vec<Album>,
+    pub artist_selected: usize,
+    pub artist_scroll: usize,
 
     // Playlists
     pub playlists: Vec<Playlist>,
@@ -249,6 +258,10 @@ impl App {
             album_tracks: Vec::new(),
             album_selected: 0,
             album_scroll: 0,
+            artist: None,
+            artist_albums: Vec::new(),
+            artist_selected: 0,
+            artist_scroll: 0,
             playlists: Vec::new(),
             playlists_selected: 0,
             playlists_scroll: 0,
@@ -444,6 +457,20 @@ impl App {
             AppMessage::DownloadProgress(done, total) => {
                 self.set_status(format!("Downloading album: {}/{}  tracks", done, total), false);
             }
+            AppMessage::ArtistLoaded(detail) => {
+                self.artist_albums = detail.albums
+                    .as_ref()
+                    .map(|a| a.items.clone())
+                    .unwrap_or_default();
+                self.artist = Some(detail);
+                self.artist_selected = 0;
+                self.artist_scroll = 0;
+                self.screen = Screen::ArtistView;
+                self.clear_status();
+            }
+            AppMessage::ArtistError(err) => {
+                self.set_error_status(format!("Artist error: {}", err));
+            }
             AppMessage::DownloadDone => {
                 self.set_temp_status("Album downloaded to cache".to_string());
             }
@@ -542,6 +569,7 @@ impl App {
             Screen::Main => self.handle_main_key(key),
             Screen::AlbumView => self.handle_album_key(key),
             Screen::PlaylistView => self.handle_playlist_view_key(key),
+            Screen::ArtistView => self.handle_artist_key(key),
         }
 
     }
@@ -737,9 +765,47 @@ impl App {
                     self.toggle_favorite(&album_id, true);
                 }
             }
+            KeyCode::Char('a') => {
+                if let Some(album) = &self.album
+                    && let Some(artist) = &album.artist
+                    && !artist.id.is_empty()
+                {
+                    self.open_artist(artist.id.clone());
+                }
+            }
             KeyCode::Backspace => self.screen = Screen::Main,
             _ => {}
         }
+    }
+
+    fn handle_artist_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Up if self.artist_selected > 0 => {
+                self.artist_selected -= 1;
+            }
+            KeyCode::Down if self.artist_selected + 1 < self.artist_albums.len() => {
+                self.artist_selected += 1;
+            }
+            KeyCode::Enter => {
+                if let Some(album) = self.artist_albums.get(self.artist_selected).cloned() {
+                    self.open_album(album.id);
+                }
+            }
+            KeyCode::Backspace => self.screen = Screen::Main,
+            _ => {}
+        }
+    }
+
+    fn open_artist(&mut self, artist_id: String) {
+        self.set_status("Loading artist...".to_string(), false);
+        let tx = self.tx.clone();
+        let api = self.api.clone();
+        tokio::spawn(async move {
+            match api.get_artist(&artist_id).await {
+                Ok(detail) => { tx.send(AppMessage::ArtistLoaded(detail)).ok(); }
+                Err(e) => { tx.send(AppMessage::ArtistError(e.to_string())).ok(); }
+            }
+        });
     }
 
     fn toggle_favorite(&mut self, album_id: &str, add: bool) {
