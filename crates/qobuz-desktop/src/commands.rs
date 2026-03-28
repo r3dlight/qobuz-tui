@@ -4,7 +4,7 @@
 //! All Mutex locks use poison recovery via `AppState::lock()`.
 
 use crate::state::AppState;
-use qobuz_lib::api::{Album, ArtistDetail, Playlist, SearchResults, Track};
+use qobuz_lib::api::{Album, ArtistDetail, Genre, Playlist, SearchResults, Track};
 use qobuz_lib::cache::TrackMeta;
 use qobuz_lib::player::AudioQuality;
 use serde::Serialize;
@@ -86,6 +86,25 @@ pub async fn get_featured(
     api.get_featured_albums(&type_, limit)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_featured_by_genre(
+    type_: String,
+    genre_id: u32,
+    limit: u32,
+    state: State<'_, AppState>,
+) -> Result<Vec<Album>, String> {
+    let api = AppState::lock(&state.api).clone();
+    api.get_featured_by_genre(&type_, genre_id, limit)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_genres(state: State<'_, AppState>) -> Result<Vec<Genre>, String> {
+    let api = AppState::lock(&state.api).clone();
+    api.get_genres().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

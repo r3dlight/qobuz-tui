@@ -68,6 +68,7 @@ const newReleases = ref([])
 const editorPicks = ref([])
 const bestSellers = ref([])
 const mostStreamed = ref([])
+const genreSections = ref([])
 const loading = ref(true)
 
 const sections = computed(() => [
@@ -75,9 +76,13 @@ const sections = computed(() => [
   { key: 'editor', title: "Editor's Picks", icon: '★', color: '#ffc832', items: editorPicks.value },
   { key: 'best', title: 'Best Sellers', icon: '♛', color: '#ff9f43', items: bestSellers.value },
   { key: 'stream', title: 'Most Streamed', icon: '♫', color: '#00d2d3', items: mostStreamed.value },
+  ...genreSections.value,
 ])
 
+const genreColors = ['#e74c3c', '#9b59b6', '#1abc9c', '#e67e22', '#2ecc71', '#3498db', '#f39c12', '#e91e63']
+
 onMounted(async () => {
+  // Load main sections
   try {
     const [nr, ep, bs, ms] = await Promise.allSettled([
       invoke('get_featured', { type_: 'new-releases', limit: 20 }),
@@ -91,6 +96,25 @@ onMounted(async () => {
     if (ms.status === 'fulfilled') mostStreamed.value = ms.value
   } catch (_) {}
   loading.value = false
+
+  // Load genre-based suggestions (after main content to avoid blocking)
+  try {
+    const genres = await invoke('get_genres')
+    // Pick up to 6 genres for variety
+    const selected = genres.slice(0, 6)
+    const results = await Promise.allSettled(
+      selected.map(g => invoke('get_featured_by_genre', { type_: 'new-releases', genreId: g.id, limit: 15 }))
+    )
+    genreSections.value = selected
+      .map((g, i) => ({
+        key: `genre-${g.id}`,
+        title: `New in ${g.name}`,
+        icon: '●',
+        color: genreColors[i % genreColors.length],
+        items: results[i].status === 'fulfilled' ? results[i].value : [],
+      }))
+      .filter(s => s.items.length > 0)
+  } catch (_) {}
 })
 </script>
 

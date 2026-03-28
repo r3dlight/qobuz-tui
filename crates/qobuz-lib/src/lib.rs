@@ -13,8 +13,8 @@ pub mod stream;
 pub mod streaming;
 
 pub use api::{
-    Album, AlbumImage, Artist, ArtistDetail, Playlist, PlaylistOwner, QobuzClient, SearchResults,
-    Track, format_fallback_chain,
+    Album, AlbumImage, Artist, ArtistDetail, Genre, Playlist, PlaylistOwner, QobuzClient,
+    SearchResults, Track, format_fallback_chain,
 };
 pub use cache::{AudioCache, TrackMeta};
 pub use config::Config;

@@ -149,6 +149,15 @@ pub struct SearchResults {
     pub albums: Option<AlbumList>,
 }
 
+/// Music genre from the Qobuz catalog.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Genre {
+    pub id: u32,
+    pub name: String,
+    pub slug: String,
+}
+
 impl Track {
     /// Artist display name, or "Unknown" if not available.
     pub fn artist_name(&self) -> &str {
@@ -534,6 +543,76 @@ impl QobuzClient {
             })
             .unwrap_or_default();
         Ok(albums)
+    }
+
+    /// Fetch featured albums filtered by genre.
+    pub async fn get_featured_by_genre(
+        &self,
+        type_: &str,
+        genre_id: u32,
+        limit: u32,
+    ) -> Result<Vec<Album>> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .get(format!("{}/album/getFeatured", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .query(&[
+                ("type", type_),
+                ("genre_id", &genre_id.to_string()),
+                ("limit", &limit.to_string()),
+            ])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get featured by genre".into(),
+            ));
+        }
+        let body: serde_json::Value = resp.json().await?;
+        let albums = body
+            .get("albums")
+            .and_then(|a| a.get("items"))
+            .and_then(|items| items.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| serde_json::from_value(item.clone()).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(albums)
+    }
+
+    /// Fetch the list of music genres.
+    pub async fn get_genres(&self) -> Result<Vec<Genre>> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .get(format!("{}/genre/list", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get genres".into(),
+            ));
+        }
+        let body: serde_json::Value = resp.json().await?;
+        let genres = body
+            .get("genres")
+            .and_then(|g| g.get("items"))
+            .and_then(|items| items.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| serde_json::from_value(item.clone()).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(genres)
     }
 
     /// Fetch artist details including discography.

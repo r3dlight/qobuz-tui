@@ -28,6 +28,8 @@ fn main() {
             commands::search,
             commands::get_album,
             commands::get_featured,
+            commands::get_featured_by_genre,
+            commands::get_genres,
             commands::get_artist,
             commands::get_favorites,
             commands::get_playlists,
