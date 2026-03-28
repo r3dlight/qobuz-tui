@@ -27,6 +27,7 @@ fn main() {
             commands::check_auth,
             commands::search,
             commands::get_album,
+            commands::get_featured,
             commands::get_artist,
             commands::get_favorites,
             commands::get_playlists,

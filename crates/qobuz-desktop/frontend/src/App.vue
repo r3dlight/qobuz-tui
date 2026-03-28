@@ -5,6 +5,10 @@
   <div class="app" v-else>
     <nav class="tabs">
       <div class="brand">Qobuz</div>
+      <button :class="{ active: tab === 'home' }" @click="tab = 'home'">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        Home
+      </button>
       <button :class="{ active: tab === 'search' }" @click="tab = 'search'">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
         Search
@@ -20,7 +24,8 @@
     </nav>
 
     <main class="content">
-      <SearchView v-if="tab === 'search'" @open-album="openAlbum" @play-tracks="playTracksFrom" />
+      <HomeView v-if="tab === 'home'" @open-album="openAlbum" />
+      <SearchView v-else-if="tab === 'search'" @open-album="openAlbum" @play-tracks="playTracksFrom" />
       <AlbumListView v-else-if="tab === 'albums'" :albums="favorites" :loading="loadingFavorites"
         @open-album="openAlbum" @remove-favorite="removeFavorite" />
       <PlaylistListView v-else-if="tab === 'playlists'" :playlists="playlists" :loading="loadingPlaylists"
@@ -41,6 +46,7 @@
 import { ref, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import LoginView from './components/LoginView.vue'
+import HomeView from './components/HomeView.vue'
 import SearchView from './components/SearchView.vue'
 import AlbumListView from './components/AlbumListView.vue'
 import PlaylistListView from './components/PlaylistListView.vue'
@@ -50,7 +56,7 @@ import PlaylistDetailView from './components/PlaylistDetailView.vue'
 import PlayerBar from './components/PlayerBar.vue'
 
 const isLoggedIn = ref(false)
-const tab = ref('search')
+const tab = ref('home')
 const previousTab = ref('search')
 
 const favorites = ref([])

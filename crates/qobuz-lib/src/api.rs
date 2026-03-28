@@ -500,6 +500,42 @@ impl QobuzClient {
         Err(last_err)
     }
 
+    /// Fetch featured/new albums. `type_` can be: "new-releases", "press-awards",
+    /// "best-sellers", "editor-picks", "most-streamed", "most-featured".
+    pub async fn get_featured_albums(
+        &self,
+        type_: &str,
+        limit: u32,
+    ) -> Result<Vec<Album>> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .get(format!("{}/album/getFeatured", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .query(&[("type", type_), ("limit", &limit.to_string())])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(QobuzError::HttpStatus(
+                resp.status().as_u16(),
+                "Get featured".into(),
+            ));
+        }
+        let body: serde_json::Value = resp.json().await?;
+        let albums = body
+            .get("albums")
+            .and_then(|a| a.get("items"))
+            .and_then(|items| items.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| serde_json::from_value(item.clone()).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(albums)
+    }
+
     /// Fetch artist details including discography.
     pub async fn get_artist(&self, artist_id: &str) -> Result<ArtistDetail> {
         let token = self.require_token()?;

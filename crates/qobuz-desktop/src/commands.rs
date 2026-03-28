@@ -77,6 +77,18 @@ pub async fn get_album(album_id: String, state: State<'_, AppState>) -> Result<A
 }
 
 #[tauri::command]
+pub async fn get_featured(
+    type_: String,
+    limit: u32,
+    state: State<'_, AppState>,
+) -> Result<Vec<Album>, String> {
+    let api = AppState::lock(&state.api).clone();
+    api.get_featured_albums(&type_, limit)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn get_artist(
     artist_id: String,
     state: State<'_, AppState>,
