@@ -60,6 +60,7 @@ impl SessionTrack {
                 name: self.artist.clone(),
             }),
             album: Some(crate::api::AlbumBrief {
+                id: String::new(),
                 title: self.album.clone(),
                 artist: None,
             }),

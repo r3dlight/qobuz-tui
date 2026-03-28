@@ -84,6 +84,8 @@ pub struct Biography {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct AlbumBrief {
+    #[serde(deserialize_with = "deserialize_id", default)]
+    pub id: String,
     pub title: String,
     pub artist: Option<Artist>,
 }

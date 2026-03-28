@@ -103,7 +103,7 @@ fn session_track_preserves_artist_id() {
             id: "artist-123".into(),
             name: "A".into(),
         }),
-        album: Some(AlbumBrief {
+        album: Some(AlbumBrief { id: String::new(),
             title: "Al".into(),
             artist: None,
         }),
@@ -210,6 +210,7 @@ fn track_album_title_fallback() {
 
     let with_album = Track {
         album: Some(AlbumBrief {
+            id: String::new(),
             title: "Jazz".into(),
             artist: None,
         }),
@@ -230,6 +231,7 @@ fn make_track(id: &str, title: &str) -> Track {
             name: "Test Artist".into(),
         }),
         album: Some(AlbumBrief {
+            id: String::new(),
             title: "Test Album".into(),
             artist: None,
         }),
