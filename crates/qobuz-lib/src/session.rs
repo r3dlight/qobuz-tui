@@ -67,14 +67,20 @@ fn session_path() -> PathBuf {
         .join("session.json")
 }
 
-/// Load session from disk, or return defaults if not found.
-pub fn load() -> Session {
+/// Load session from disk. Returns `(session, corrupted)`.
+/// If the file exists but is corrupted, returns defaults with `corrupted = true`.
+pub fn load() -> (Session, bool) {
     let path = session_path();
-    if path.exists() {
-        let content = fs::read_to_string(&path).unwrap_or_default();
-        serde_json::from_str(&content).unwrap_or_default()
-    } else {
-        Session::default()
+    if !path.exists() {
+        return (Session::default(), false);
+    }
+    let content = match fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return (Session::default(), true),
+    };
+    match serde_json::from_str(&content) {
+        Ok(s) => (s, false),
+        Err(_) => (Session::default(), true),
     }
 }
 

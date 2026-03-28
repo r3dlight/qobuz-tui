@@ -91,6 +91,7 @@ pub struct App {
     pub search_mode: SearchMode,
     search_has_more: bool,
     search_loading_more: bool,
+    stream_fail_count: u8,
 
     // Favorites (albums)
     pub favorite_albums: Vec<Album>,
@@ -212,7 +213,7 @@ impl App {
         };
 
         // Restore session
-        let saved = session::load();
+        let (saved, session_corrupted) = session::load();
         let mut player = player;
         player.set_volume(saved.volume.clamp(0.0, 1.0));
         let restored_queue: Vec<Track> = saved.queue.iter().map(|t| t.to_track()).collect();
@@ -222,7 +223,7 @@ impl App {
             _ => LoopMode::Off,
         };
 
-        Self {
+        let mut app = Self {
             screen,
             should_quit: false,
             tab: Tab::Search,
@@ -239,6 +240,7 @@ impl App {
             search_mode: SearchMode::Tracks,
             search_has_more: false,
             search_loading_more: false,
+            stream_fail_count: 0,
             favorite_albums: Vec::new(),
             favorites_selected: 0,
             favorites_scroll: 0,
@@ -267,7 +269,13 @@ impl App {
             api,
             config,
             tx,
+        };
+
+        if session_corrupted {
+            app.set_error_status("Session file was corrupted — queue reset".to_string());
         }
+
+        app
     }
 
     pub fn handle_message(&mut self, msg: AppMessage) {
@@ -275,7 +283,9 @@ impl App {
             AppMessage::CredentialsFetched(app_id, app_secret) => {
                 self.config.app_id = app_id;
                 self.config.app_secret = app_secret;
-                let _ = self.config.save();
+                if let Err(e) = self.config.save() {
+                    self.set_error_status(format!("Config save failed: {}", e));
+                }
                 self.api = QobuzClient::new(&self.config.app_id, &self.config.app_secret);
                 self.login_status = Some("Ready to login".to_string());
             }
@@ -293,7 +303,9 @@ impl App {
                 self.config.app_secret = app_secret;
                 self.config.email = Some(self.login_fields[0].clone());
                 self.config.user_auth_token = Some(token);
-                let _ = self.config.save();
+                if let Err(e) = self.config.save() {
+                    self.set_error_status(format!("Config save failed: {}", e));
+                }
                 self.api = QobuzClient::new(&self.config.app_id, &self.config.app_secret);
                 if let Some(t) = &self.config.user_auth_token {
                     self.api.set_token(t.clone());
@@ -338,10 +350,22 @@ impl App {
                 self.set_error_status(format!("Favorites error: {}", err));
             }
             AppMessage::StreamReady(buffer, title, artist, duration, format_id) => {
-                if self.player.play_streaming(buffer, &title, &artist, duration).is_ok() {
-                    self.player.set_quality(AudioQuality::from_format_id(format_id));
+                match self.player.play_streaming(buffer, &title, &artist, duration) {
+                    Ok(()) => {
+                        self.player.set_quality(AudioQuality::from_format_id(format_id));
+                        self.stream_fail_count = 0;
+                    }
+                    Err(_) => {
+                        // Decoder failed on this format — a fallback may send another StreamReady.
+                        self.stream_fail_count += 1;
+                        if self.stream_fail_count >= 4 {
+                            // All formats exhausted
+                            self.player.set_error();
+                            self.set_error_status("Playback failed: no compatible audio format".to_string());
+                            self.stream_fail_count = 0;
+                        }
+                    }
                 }
-                // Decoder failure is silent — format fallback will send another StreamReady.
             }
             AppMessage::StatusMessage(msg) => {
                 self.set_temp_status(msg);

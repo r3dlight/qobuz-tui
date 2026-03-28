@@ -20,7 +20,7 @@ depends = "libasound2"
 qobuz-lib = { path = "../qobuz-lib" }
 ratatui = "0.30"
 crossterm = "0.29"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 rodio = { version = "0.19", features = ["symphonia-all"] }
 anyhow = "1"
 dirs = "6"
