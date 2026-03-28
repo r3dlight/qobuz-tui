@@ -70,8 +70,6 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2"
 
-      - name: Generate icons
-        run: cd crates/qobuz-desktop && cargo tauri icon icons/icon.png
 
       - name: Build Tauri (deb + rpm + AppImage)
         run: cd crates/qobuz-desktop && cargo tauri build
@@ -111,8 +109,6 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2"
 
-      - name: Generate icons
-        run: cd crates/qobuz-desktop && cargo tauri icon icons/icon.png
 
       - name: Build Tauri (MSI + NSIS)
         run: cd crates/qobuz-desktop && cargo tauri build
@@ -152,8 +148,6 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2"
 
-      - name: Generate icons
-        run: cd crates/qobuz-desktop && cargo tauri icon icons/icon.png
 
       - name: Build Tauri (.dmg + .app)
         run: cd crates/qobuz-desktop && cargo tauri build
