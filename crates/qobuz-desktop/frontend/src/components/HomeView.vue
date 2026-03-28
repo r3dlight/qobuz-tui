@@ -1,62 +1,66 @@
 <template>
   <div class="home">
-    <section v-if="newReleases.length > 0">
-      <h2>New Releases</h2>
+    <!-- Hero banner -->
+    <div class="hero">
+      <div class="hero-content">
+        <h1>Welcome back</h1>
+        <p>Discover new music in Hi-Res quality</p>
+      </div>
+      <div class="hero-quick" v-if="newReleases.length > 0">
+        <div class="hero-card" v-for="album in newReleases.slice(0, 5)" :key="album.id"
+          @click="emit('open-album', album.id)">
+          <img v-if="album.image?.small" :src="album.image.small" class="hero-cover" />
+          <div class="hero-card-info">
+            <div class="hero-card-title">{{ album.title }}</div>
+            <div class="hero-card-artist">{{ album.artist?.name || '' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sections -->
+    <section v-for="section in sections" :key="section.key" v-show="section.items.length > 0">
+      <div class="section-header">
+        <h2>
+          <span class="section-icon" :style="{ color: section.color }">{{ section.icon }}</span>
+          {{ section.title }}
+        </h2>
+        <span class="section-count">{{ section.items.length }} albums</span>
+      </div>
       <div class="album-row">
-        <div class="album-card" v-for="album in newReleases" :key="album.id" @click="emit('open-album', album.id)">
-          <img v-if="album.image?.small" :src="album.image.small" class="cover" :alt="album.title" />
-          <div class="placeholder" v-else>♫</div>
+        <div class="album-card" v-for="album in section.items" :key="album.id"
+          @click="emit('open-album', album.id)">
+          <div class="cover-wrapper">
+            <img v-if="album.image?.small" :src="album.image.small" class="cover" :alt="album.title" />
+            <div class="placeholder" v-else>♫</div>
+            <div class="cover-overlay">
+              <button class="play-overlay-btn">▶</button>
+            </div>
+          </div>
           <div class="card-title">{{ album.title }}</div>
           <div class="card-artist">{{ album.artist?.name || '' }}</div>
+          <div class="card-year" v-if="album.release_date_original">
+            {{ album.release_date_original?.slice(0, 4) }}
+          </div>
         </div>
       </div>
     </section>
 
-    <section v-if="editorPicks.length > 0">
-      <h2>Editor's Picks</h2>
-      <div class="album-row">
-        <div class="album-card" v-for="album in editorPicks" :key="album.id" @click="emit('open-album', album.id)">
-          <img v-if="album.image?.small" :src="album.image.small" class="cover" :alt="album.title" />
-          <div class="placeholder" v-else>♫</div>
-          <div class="card-title">{{ album.title }}</div>
-          <div class="card-artist">{{ album.artist?.name || '' }}</div>
+    <!-- Loading -->
+    <div class="loading-screen" v-if="loading">
+      <div class="loading-grid">
+        <div class="skeleton-card" v-for="i in 12" :key="i">
+          <div class="skeleton-cover"></div>
+          <div class="skeleton-line w80"></div>
+          <div class="skeleton-line w50"></div>
         </div>
       </div>
-    </section>
-
-    <section v-if="bestSellers.length > 0">
-      <h2>Best Sellers</h2>
-      <div class="album-row">
-        <div class="album-card" v-for="album in bestSellers" :key="album.id" @click="emit('open-album', album.id)">
-          <img v-if="album.image?.small" :src="album.image.small" class="cover" :alt="album.title" />
-          <div class="placeholder" v-else>♫</div>
-          <div class="card-title">{{ album.title }}</div>
-          <div class="card-artist">{{ album.artist?.name || '' }}</div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="mostStreamed.length > 0">
-      <h2>Most Streamed</h2>
-      <div class="album-row">
-        <div class="album-card" v-for="album in mostStreamed" :key="album.id" @click="emit('open-album', album.id)">
-          <img v-if="album.image?.small" :src="album.image.small" class="cover" :alt="album.title" />
-          <div class="placeholder" v-else>♫</div>
-          <div class="card-title">{{ album.title }}</div>
-          <div class="card-artist">{{ album.artist?.name || '' }}</div>
-        </div>
-      </div>
-    </section>
-
-    <div class="loading" v-if="loading">
-      <div class="spinner"></div>
-      Loading recommendations...
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 
 const emit = defineEmits(['open-album'])
@@ -66,13 +70,20 @@ const bestSellers = ref([])
 const mostStreamed = ref([])
 const loading = ref(true)
 
+const sections = computed(() => [
+  { key: 'new', title: 'New Releases', icon: '✦', color: '#6495ed', items: newReleases.value },
+  { key: 'editor', title: "Editor's Picks", icon: '★', color: '#ffc832', items: editorPicks.value },
+  { key: 'best', title: 'Best Sellers', icon: '♛', color: '#ff9f43', items: bestSellers.value },
+  { key: 'stream', title: 'Most Streamed', icon: '♫', color: '#00d2d3', items: mostStreamed.value },
+])
+
 onMounted(async () => {
   try {
     const [nr, ep, bs, ms] = await Promise.allSettled([
-      invoke('get_featured', { type_: 'new-releases', limit: 12 }),
-      invoke('get_featured', { type_: 'editor-picks', limit: 12 }),
-      invoke('get_featured', { type_: 'best-sellers', limit: 12 }),
-      invoke('get_featured', { type_: 'most-streamed', limit: 12 }),
+      invoke('get_featured', { type_: 'new-releases', limit: 20 }),
+      invoke('get_featured', { type_: 'editor-picks', limit: 20 }),
+      invoke('get_featured', { type_: 'best-sellers', limit: 20 }),
+      invoke('get_featured', { type_: 'most-streamed', limit: 20 }),
     ])
     if (nr.status === 'fulfilled') newReleases.value = nr.value
     if (ep.status === 'fulfilled') editorPicks.value = ep.value
@@ -84,19 +95,51 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.home { display: flex; flex-direction: column; gap: 2rem; }
+.home { display: flex; flex-direction: column; gap: 1.8rem; padding-bottom: 1rem; }
 
-section h2 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #e6e6f0;
-  margin-bottom: 0.8rem;
-  padding-left: 0.2rem;
+/* Hero */
+.hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
 }
+.hero-content h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, #6495ed, #00d2d3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.3rem;
+}
+.hero-content p { color: #9696a8; font-size: 0.95rem; }
 
+.hero-quick { display: flex; gap: 0.6rem; }
+.hero-card {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px; padding: 0.5rem 0.8rem 0.5rem 0.5rem;
+  cursor: pointer; transition: background 0.15s;
+  min-width: 180px;
+}
+.hero-card:hover { background: rgba(255,255,255,0.1); }
+.hero-cover { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; }
+.hero-card-title { font-size: 0.8rem; font-weight: 600; color: #e6e6f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+.hero-card-artist { font-size: 0.7rem; color: #9696a8; }
+
+/* Section headers */
+.section-header { display: flex; justify-content: space-between; align-items: baseline; padding: 0 0.2rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 700; color: #e6e6f0; display: flex; align-items: center; gap: 0.5rem; }
+.section-icon { font-size: 1rem; }
+.section-count { font-size: 0.75rem; color: #5a5a6e; }
+
+/* Album row */
 .album-row {
   display: flex;
-  gap: 0.8rem;
+  gap: 1rem;
   overflow-x: auto;
   padding-bottom: 0.5rem;
   scrollbar-width: thin;
@@ -106,48 +149,75 @@ section h2 {
 .album-row::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
 
 .album-card {
-  flex: 0 0 150px;
+  flex: 0 0 160px;
   cursor: pointer;
   transition: transform 0.15s;
 }
-.album-card:hover { transform: translateY(-4px); }
+.album-card:hover { transform: translateY(-3px); }
 
+.cover-wrapper { position: relative; border-radius: 8px; overflow: hidden; }
 .cover {
-  width: 150px; height: 150px;
-  border-radius: 6px;
-  object-fit: cover;
-  display: block;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  width: 160px; height: 160px;
+  object-fit: cover; display: block;
 }
 .placeholder {
-  width: 150px; height: 150px;
-  background: #252535; border-radius: 6px;
+  width: 160px; height: 160px;
+  background: linear-gradient(135deg, #1e1e2e, #252535);
   display: flex; align-items: center; justify-content: center;
-  font-size: 2rem; color: #3a3a4e;
+  font-size: 2.5rem; color: #3a3a4e;
 }
+.cover-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+.album-card:hover .cover-overlay { opacity: 1; }
+.play-overlay-btn {
+  width: 44px; height: 44px;
+  background: rgba(255,255,255,0.9);
+  border: none; border-radius: 50%;
+  color: #12121a; font-size: 1.2rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  transition: transform 0.15s;
+}
+.play-overlay-btn:hover { transform: scale(1.1); }
+
 .card-title {
   margin-top: 0.5rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #e6e6f0;
+  font-size: 0.82rem; font-weight: 600; color: #e6e6f0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-width: 150px;
+  max-width: 160px;
 }
 .card-artist {
-  font-size: 0.75rem;
-  color: #78788c;
+  font-size: 0.75rem; color: #9696a8;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-width: 150px;
+  max-width: 160px;
 }
+.card-year { font-size: 0.7rem; color: #5a5a6e; }
 
-.loading {
-  display: flex; align-items: center; justify-content: center;
-  gap: 0.7rem; color: #5a5a6e; padding: 3rem;
+/* Loading skeleton */
+.loading-screen { padding: 1rem 0; }
+.loading-grid {
+  display: flex; gap: 1rem; overflow: hidden;
 }
-.spinner {
-  width: 16px; height: 16px;
-  border: 2px solid #5a5a6e; border-top-color: transparent;
-  border-radius: 50%; animation: spin 0.8s linear infinite;
+.skeleton-card { flex: 0 0 160px; }
+.skeleton-cover {
+  width: 160px; height: 160px;
+  background: linear-gradient(90deg, #1e1e2e 25%, #252535 50%, #1e1e2e 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.5s infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.skeleton-line {
+  height: 10px; border-radius: 4px; margin-top: 0.5rem;
+  background: linear-gradient(90deg, #1e1e2e 25%, #252535 50%, #1e1e2e 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.w80 { width: 80%; }
+.w50 { width: 50%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
 </style>
