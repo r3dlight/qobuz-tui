@@ -31,11 +31,13 @@ const emit = defineEmits(['back', 'play-tracks', 'open-artist', 'add-favorite'])
 
 const tracks = computed(() => props.album?.tracks?.items || [])
 
+const coverUrl = computed(() => props.album?.image?.large || props.album?.image?.small || null)
+
 function onPlay(index) {
-  emit('play-tracks', tracks.value, index)
+  emit('play-tracks', tracks.value, index, coverUrl.value)
 }
 function playAll() {
-  emit('play-tracks', tracks.value, 0)
+  emit('play-tracks', tracks.value, 0, coverUrl.value)
 }
 function onArtistClick() {
   const id = props.album?.artist?.id

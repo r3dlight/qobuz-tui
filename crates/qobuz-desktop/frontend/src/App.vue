@@ -104,11 +104,12 @@ async function openPlaylist(playlistId) {
   } catch (e) { console.error(e) }
 }
 
-async function playTracksFrom(tracks, index) {
+async function playTracksFrom(tracks, index, coverUrl) {
   try {
     await invoke('play_queue_from', {
       tracksJson: JSON.stringify(tracks),
-      index
+      index,
+      coverUrl: coverUrl || null,
     })
   } catch (e) { console.error(e) }
 }

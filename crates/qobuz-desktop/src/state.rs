@@ -23,6 +23,8 @@ pub struct AppState {
     pub queue: Mutex<Vec<Track>>,
     pub queue_index: Mutex<usize>,
     pub loop_mode: Mutex<u8>,
+    /// Cover art URL of the currently playing album.
+    pub current_cover_url: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -41,6 +43,12 @@ impl AppState {
             queue: Mutex::new(Vec::new()),
             queue_index: Mutex::new(0),
             loop_mode: Mutex::new(LOOP_OFF),
+            current_cover_url: Mutex::new(None),
         }
+    }
+
+    /// Lock a Mutex with poison recovery.
+    pub fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+        mutex.lock().unwrap_or_else(|e| e.into_inner())
     }
 }

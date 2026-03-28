@@ -33,6 +33,7 @@ fn main() {
             commands::get_playlist,
             commands::play_track,
             commands::play_queue_from,
+
             commands::pause,
             commands::next_track,
             commands::previous_track,
