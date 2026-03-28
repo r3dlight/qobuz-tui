@@ -103,7 +103,8 @@ fn session_track_preserves_artist_id() {
             id: "artist-123".into(),
             name: "A".into(),
         }),
-        album: Some(AlbumBrief { id: String::new(),
+        album: Some(AlbumBrief {
+            id: String::new(),
             title: "Al".into(),
             artist: None,
         }),

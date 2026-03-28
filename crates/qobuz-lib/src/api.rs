@@ -513,11 +513,7 @@ impl QobuzClient {
 
     /// Fetch featured/new albums. `type_` can be: "new-releases", "press-awards",
     /// "best-sellers", "editor-picks", "most-streamed", "most-featured".
-    pub async fn get_featured_albums(
-        &self,
-        type_: &str,
-        limit: u32,
-    ) -> Result<Vec<Album>> {
+    pub async fn get_featured_albums(&self, type_: &str, limit: u32) -> Result<Vec<Album>> {
         let token = self.require_token()?;
         let resp = self
             .client
