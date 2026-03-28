@@ -56,6 +56,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Error -->
+    <div class="error-box" v-if="error">
+      <p>{{ error }}</p>
+      <button @click="retry">Retry</button>
+    </div>
+
+    <!-- Empty state (loaded but nothing) -->
+    <div class="empty-home" v-if="!loading && !error && sections.every(s => s.items.length === 0)">
+      <p>No recommendations available. Try searching for music.</p>
+    </div>
   </div>
 </template>
 
@@ -70,6 +81,7 @@ const bestSellers = ref([])
 const mostStreamed = ref([])
 const genreSections = ref([])
 const loading = ref(true)
+const error = ref('')
 
 const sections = computed(() => [
   { key: 'new', title: 'New Releases', icon: '✦', color: '#6495ed', items: newReleases.value },
@@ -81,8 +93,12 @@ const sections = computed(() => [
 
 const genreColors = ['#e74c3c', '#9b59b6', '#1abc9c', '#e67e22', '#2ecc71', '#3498db', '#f39c12', '#e91e63']
 
-onMounted(async () => {
-  // Load main sections
+onMounted(() => loadHome())
+
+async function loadHome() {
+  loading.value = true
+  error.value = ''
+
   try {
     const [nr, ep, bs, ms] = await Promise.allSettled([
       invoke('get_featured', { type_: 'new-releases', limit: 20 }),
@@ -91,19 +107,24 @@ onMounted(async () => {
       invoke('get_featured', { type_: 'most-streamed', limit: 20 }),
     ])
     if (nr.status === 'fulfilled') newReleases.value = nr.value
+    else if (nr.status === 'rejected') error.value = String(nr.reason)
+
     if (ep.status === 'fulfilled') editorPicks.value = ep.value
     if (bs.status === 'fulfilled') bestSellers.value = bs.value
     if (ms.status === 'fulfilled') mostStreamed.value = ms.value
-  } catch (_) {}
+  } catch (e) {
+    error.value = String(e)
+  }
   loading.value = false
 
-  // Load genre-based suggestions (after main content to avoid blocking)
+  // Genre sections (non-blocking, loaded after main content)
   try {
     const genres = await invoke('get_genres')
-    // Pick up to 6 genres for variety
     const selected = genres.slice(0, 6)
     const results = await Promise.allSettled(
-      selected.map(g => invoke('get_featured_by_genre', { type_: 'new-releases', genreId: g.id, limit: 15 }))
+      selected.map(g => invoke('get_featured_by_genre', {
+        type_: 'new-releases', genreId: g.id, limit: 15
+      }))
     )
     genreSections.value = selected
       .map((g, i) => ({
@@ -115,7 +136,9 @@ onMounted(async () => {
       }))
       .filter(s => s.items.length > 0)
   } catch (_) {}
-})
+}
+
+function retry() { loadHome() }
 </script>
 
 <style scoped>
@@ -244,4 +267,31 @@ onMounted(async () => {
 .w80 { width: 80%; }
 .w50 { width: 50%; }
 @keyframes shimmer { to { background-position: -200% 0; } }
+
+.error-box {
+  background: rgba(240,85,85,0.1);
+  border: 1px solid #f05555;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  color: #f05555;
+}
+.error-box button {
+  margin-top: 0.8rem;
+  padding: 0.5rem 1.5rem;
+  background: #f05555;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.error-box button:hover { background: #e04444; }
+
+.empty-home {
+  text-align: center;
+  padding: 3rem;
+  color: #5a5a6e;
+  font-size: 0.95rem;
+}
 </style>
