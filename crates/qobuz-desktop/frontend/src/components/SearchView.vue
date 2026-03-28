@@ -2,7 +2,7 @@
   <div>
     <div class="search-bar">
       <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      <input v-model="query" @keydown.enter="doSearch" placeholder="Search tracks, albums, artists..." autofocus />
+      <input ref="searchInput" v-model="query" @keydown.enter="doSearch" placeholder="Search tracks, albums, artists..." autofocus />
       <span class="result-count" v-if="totalResults > 0">{{ totalResults }} results</span>
     </div>
     <div class="mode-tabs">
@@ -32,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import TrackList from './TrackList.vue'
 import AlbumGrid from './AlbumGrid.vue'
@@ -45,6 +45,19 @@ const albums = ref([])
 const loading = ref(false)
 const hasSearched = ref(false)
 const totalResults = computed(() => tracks.value.length + albums.value.length)
+const searchInput = ref(null)
+
+// Debounced instant search
+let debounceTimer = null
+watch(query, (val) => {
+  clearTimeout(debounceTimer)
+  if (val.trim().length >= 2) {
+    debounceTimer = setTimeout(doSearch, 350)
+  }
+})
+
+// Expose focus for keyboard shortcut
+defineExpose({ focus: () => searchInput.value?.focus() })
 
 async function doSearch() {
   if (!query.value.trim()) return
