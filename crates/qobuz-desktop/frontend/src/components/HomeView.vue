@@ -101,10 +101,10 @@ async function loadHome() {
 
   try {
     const [nr, ep, bs, ms] = await Promise.allSettled([
-      invoke('get_featured', { type_: 'new-releases', limit: 20 }),
-      invoke('get_featured', { type_: 'editor-picks', limit: 20 }),
-      invoke('get_featured', { type_: 'best-sellers', limit: 20 }),
-      invoke('get_featured', { type_: 'most-streamed', limit: 20 }),
+      invoke('get_featured', { featuredType: 'new-releases', limit: 20 }),
+      invoke('get_featured', { featuredType: 'editor-picks', limit: 20 }),
+      invoke('get_featured', { featuredType: 'best-sellers', limit: 20 }),
+      invoke('get_featured', { featuredType: 'most-streamed', limit: 20 }),
     ])
     if (nr.status === 'fulfilled') newReleases.value = nr.value
     else if (nr.status === 'rejected') error.value = String(nr.reason)
@@ -123,7 +123,7 @@ async function loadHome() {
     const selected = genres.slice(0, 6)
     const results = await Promise.allSettled(
       selected.map(g => invoke('get_featured_by_genre', {
-        type_: 'new-releases', genreId: g.id, limit: 15
+        featuredType: 'new-releases', genreId: g.id, limit: 15
       }))
     )
     genreSections.value = selected

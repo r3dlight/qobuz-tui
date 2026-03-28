@@ -78,25 +78,28 @@ pub async fn get_album(album_id: String, state: State<'_, AppState>) -> Result<A
 
 #[tauri::command]
 pub async fn get_featured(
-    type_: String,
+    #[allow(non_snake_case)]
+    featuredType: String,
     limit: u32,
     state: State<'_, AppState>,
 ) -> Result<Vec<Album>, String> {
     let api = AppState::lock(&state.api).clone();
-    api.get_featured_albums(&type_, limit)
+    api.get_featured_albums(&featuredType, limit)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_featured_by_genre(
-    type_: String,
-    genre_id: u32,
+    #[allow(non_snake_case)]
+    featuredType: String,
+    #[allow(non_snake_case)]
+    genreId: u32,
     limit: u32,
     state: State<'_, AppState>,
 ) -> Result<Vec<Album>, String> {
     let api = AppState::lock(&state.api).clone();
-    api.get_featured_by_genre(&type_, genre_id, limit)
+    api.get_featured_by_genre(&featuredType, genreId, limit)
         .await
         .map_err(|e| e.to_string())
 }
