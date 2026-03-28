@@ -43,3 +43,4 @@ jobs:
           files: |
             qobuz-tui-linux-x86_64
             *.deb
+            PKGBUILD
