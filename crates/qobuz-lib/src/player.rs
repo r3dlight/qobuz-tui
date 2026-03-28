@@ -131,10 +131,12 @@ impl Player {
         self.current_track_title = Some(title.to_string());
         self.current_track_artist = Some(artist.to_string());
         self.current_track_duration = duration;
+        self.current_quality = None;
         self.play_started_at = Some(Instant::now());
         self.paused_duration = Duration::ZERO;
         self.pause_started_at = None;
         self.position_offset = Duration::ZERO;
+        self.last_seek_err = None;
     }
 
     /// Toggle between playing and paused. No-op if nothing is loaded.
@@ -194,9 +196,12 @@ impl Player {
     }
 
     /// Mark the player as loading a new track (shows "Loading..." in the UI).
+    /// Resets quality, seek state, and timing.
     pub fn set_loading(&mut self, title: &str, artist: &str) {
         self.is_loading = true;
         self.is_playing = false;
+        self.current_quality = None;
+        self.last_seek_err = None;
         self.current_track_title = Some(title.to_string());
         self.current_track_artist = Some(artist.to_string());
     }

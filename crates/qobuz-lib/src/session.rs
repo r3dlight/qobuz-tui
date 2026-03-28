@@ -23,6 +23,8 @@ pub struct SessionTrack {
     pub id: String,
     pub title: String,
     pub artist: String,
+    #[serde(default)]
+    pub artist_id: String,
     pub album: String,
     pub duration: u64,
     pub track_number: Option<u32>,
@@ -35,6 +37,7 @@ impl SessionTrack {
             id: t.id.clone(),
             title: t.title.clone(),
             artist: t.artist_name().to_string(),
+            artist_id: t.performer.as_ref().map(|a| a.id.clone()).unwrap_or_default(),
             album: t.album_title().to_string(),
             duration: t.duration,
             track_number: t.track_number,
@@ -49,7 +52,7 @@ impl SessionTrack {
             duration: self.duration,
             track_number: self.track_number,
             performer: Some(crate::api::Artist {
-                id: String::new(),
+                id: self.artist_id.clone(),
                 name: self.artist.clone(),
             }),
             album: Some(crate::api::AlbumBrief {

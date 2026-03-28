@@ -318,8 +318,11 @@ impl App {
                 self.login_error = Some(err);
             }
             AppMessage::SearchResults(tracks, albums) => {
-                self.search_has_more = tracks.len() >= Self::SEARCH_PAGE_SIZE
-                    || albums.len() >= Self::SEARCH_PAGE_SIZE;
+                // has_more if current mode got a full page
+                self.search_has_more = match self.search_mode {
+                    SearchMode::Tracks => tracks.len() >= Self::SEARCH_PAGE_SIZE,
+                    SearchMode::Albums => albums.len() >= Self::SEARCH_PAGE_SIZE,
+                };
                 self.search_tracks = tracks;
                 self.search_albums = albums;
                 self.search_selected = 0;
@@ -328,8 +331,10 @@ impl App {
                 self.clear_status();
             }
             AppMessage::SearchMore(tracks, albums) => {
-                self.search_has_more = tracks.len() >= Self::SEARCH_PAGE_SIZE
-                    || albums.len() >= Self::SEARCH_PAGE_SIZE;
+                self.search_has_more = match self.search_mode {
+                    SearchMode::Tracks => tracks.len() >= Self::SEARCH_PAGE_SIZE,
+                    SearchMode::Albums => albums.len() >= Self::SEARCH_PAGE_SIZE,
+                };
                 self.search_tracks.extend(tracks);
                 self.search_albums.extend(albums);
                 self.search_loading_more = false;
@@ -779,19 +784,17 @@ impl App {
         let format_id = self.config.format_id();
 
         tokio::spawn(async move {
-            let mut failed = 0usize;
+            let mut failed_names: Vec<String> = Vec::new();
             for (i, track) in tracks.iter().enumerate() {
-                // Skip if already cached
                 if cache.has(&track.id) {
                     tx.send(AppMessage::DownloadProgress(i + 1, total)).ok();
                     continue;
                 }
 
-                // Retry up to 3 times with increasing delay
                 let mut success = false;
-                for attempt in 0..3 {
+                for attempt in 0..3u64 {
                     if attempt > 0 {
-                        tokio::time::sleep(std::time::Duration::from_secs(2 * attempt as u64)).await;
+                        tokio::time::sleep(std::time::Duration::from_secs(2 * attempt)).await;
                     }
                     match api.download_track(&track.id, format_id).await {
                         Ok(data) => {
@@ -806,28 +809,19 @@ impl App {
                             break;
                         }
                         Err(_) if attempt < 2 => continue,
-                        Err(e) => {
-                            tx.send(AppMessage::DownloadProgress(i + 1, total)).ok();
-                            tx.send(AppMessage::DownloadError(format!(
-                                "Skipped \"{}\": {}", track.title, e
-                            ))).ok();
-                            break;
-                        }
+                        Err(_) => break,
                     }
                 }
-                if success {
-                    tx.send(AppMessage::DownloadProgress(i + 1, total)).ok();
-                } else {
-                    failed += 1;
+                tx.send(AppMessage::DownloadProgress(i + 1, total)).ok();
+                if !success {
+                    failed_names.push(track.title.clone());
                 }
             }
-            if failed > 0 {
-                tx.send(AppMessage::DownloadDone).ok();
+            tx.send(AppMessage::DownloadDone).ok();
+            if !failed_names.is_empty() {
                 tx.send(AppMessage::DownloadError(format!(
-                    "{} track(s) failed to download", failed
+                    "Failed: {}", failed_names.join(", ")
                 ))).ok();
-            } else {
-                tx.send(AppMessage::DownloadDone).ok();
             }
         });
     }
@@ -1077,15 +1071,23 @@ impl App {
             let album = track.album_title().to_string();
             let track_num = track.track_number;
             self.next_track_prefetched = true;
+            let tx = self.tx.clone();
             tokio::spawn(async move {
-                if let Ok(data) = api.download_track(&track_id, format_id).await {
-                    let meta = TrackMeta {
-                        artist: &artist,
-                        album: &album,
-                        track_number: track_num,
-                        title: &title,
-                    };
-                    cache.put(&track_id, &data, &meta);
+                match api.download_track(&track_id, format_id).await {
+                    Ok(data) => {
+                        let meta = TrackMeta {
+                            artist: &artist,
+                            album: &album,
+                            track_number: track_num,
+                            title: &title,
+                        };
+                        cache.put(&track_id, &data, &meta);
+                    }
+                    Err(e) => {
+                        tx.send(AppMessage::StatusMessage(
+                            format!("Prefetch failed: {}", e),
+                        )).ok();
+                    }
                 }
             });
         }
