@@ -58,7 +58,27 @@ pub struct Track {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct Artist {
+    #[serde(deserialize_with = "deserialize_id", default)]
+    pub id: String,
     pub name: String,
+}
+
+/// Full artist detail with biography and album list.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ArtistDetail {
+    #[serde(deserialize_with = "deserialize_id", default)]
+    pub id: String,
+    pub name: String,
+    pub albums_count: Option<u32>,
+    pub biography: Option<Biography>,
+    pub albums: Option<AlbumList>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct Biography {
+    pub summary: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -473,6 +493,28 @@ impl QobuzClient {
         }
 
         Err(last_err)
+    }
+
+    /// Fetch artist details including discography.
+    pub async fn get_artist(&self, artist_id: &str) -> Result<ArtistDetail> {
+        let token = self.require_token()?;
+        let resp = self
+            .client
+            .get(format!("{}/artist/get", BASE_URL))
+            .header("X-App-Id", &self.app_id)
+            .header("X-User-Auth-Token", token)
+            .query(&[
+                ("artist_id", artist_id),
+                ("extra", "albums"),
+                ("limit", "100"),
+            ])
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("Get artist failed: {}", resp.status()));
+        }
+        let body: serde_json::Value = resp.json().await?;
+        serde_json::from_value(body).map_err(|e| anyhow!("Parse artist: {}", e))
     }
 
     /// Add an album to the user's favorites.

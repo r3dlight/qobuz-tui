@@ -49,6 +49,7 @@ impl SessionTrack {
             duration: self.duration,
             track_number: self.track_number,
             performer: Some(crate::api::Artist {
+                id: String::new(),
                 name: self.artist.clone(),
             }),
             album: Some(crate::api::AlbumBrief {

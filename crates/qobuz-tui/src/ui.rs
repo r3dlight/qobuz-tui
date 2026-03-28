@@ -591,12 +591,12 @@ fn render_player_bar(f: &mut Frame, app: &App, area: Rect) {
 fn render_help_bar(f: &mut Frame, app: &App, area: Rect) {
     let h: Vec<(&str, &str)> = match app.screen {
         Screen::Main => match app.tab {
-            Tab::Search => vec![("Enter", "Search/Play"), ("S-Tab", "Trk/Alb"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("Esc", "Quit")],
-            Tab::Favorites => vec![("Enter", "Open"), ("x", "Unfav"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("Esc", "Quit")],
-            Tab::Playlists => vec![("Enter", "Open"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("Esc", "Quit")],
+            Tab::Search => vec![("Enter", "Search/Play"), ("S-Tab", "Trk/Alb"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
+            Tab::Favorites => vec![("Enter", "Open"), ("x", "Unfav"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
+            Tab::Playlists => vec![("Enter", "Open"), ("Tab", "Next tab"), ("\u{2191}\u{2193}", "Nav"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
         },
-        Screen::AlbumView => vec![("Enter", "Play"), ("d", "DL"), ("f", "Fav"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("Esc", "Quit")],
-        Screen::PlaylistView => vec![("Enter", "Play"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("Esc", "Quit")],
+        Screen::AlbumView => vec![("Enter", "Play"), ("d", "DL"), ("f", "Fav"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
+        Screen::PlaylistView => vec![("Enter", "Play"), ("Bksp", "Back"), ("p", "Pause"), ("n/N", "Skip"), ("r", "Loop"), ("s", "Shuffle"), ("Esc", "Quit")],
         Screen::Login => return,
     };
     let spans: Vec<Span> = h.iter().enumerate().flat_map(|(i, (k, a))| {

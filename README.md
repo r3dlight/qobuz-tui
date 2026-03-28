@@ -151,12 +151,13 @@ The search bar is always active — just type your query and press Enter.
 | `n` | Next track in queue |
 | `N` | Previous track in queue |
 | `r` | Cycle loop mode: Off → `LOOP:TRACK` → `LOOP:ALL` → Off |
+| `s` | Shuffle queue (current track stays first) |
 | `,` / `;` | Seek backward / forward 10 seconds |
 | `Left` / `Right` | Volume down / up |
 | `Esc` | Quit |
 | `Ctrl+C` | Force quit |
 
-> **Note:** `p`, `n`, `N`, `r`, `f`, `x`, `d`, `,`, `;` are shortcut keys — they type normally on the search and login screens.
+> **Note:** `p`, `n`, `N`, `r`, `s`, `f`, `x`, `d`, `,`, `;` are shortcut keys — they type normally on the search and login screens.
 
 ## Configuration
 

@@ -5,13 +5,13 @@
 //! The `App` struct owns all UI and domain state. Async operations (API calls,
 //! audio downloads) communicate via [`AppMessage`] through an unbounded channel.
 
-use qobuz_lib::api::{self, format_fallback_chain, Album, Playlist, QobuzClient, Track};
+use qobuz_lib::api::{self, Album, Playlist, QobuzClient, Track};
 use qobuz_lib::cache::{AudioCache, TrackMeta};
 use qobuz_lib::config::Config;
 use qobuz_lib::player::{AudioQuality, Player};
 use qobuz_lib::session::{self, SessionTrack};
-use qobuz_lib::stream::{self, StreamingBuffer};
-use anyhow::Result;
+use qobuz_lib::stream::StreamingBuffer;
+use qobuz_lib::streaming::StreamListener;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc;
 
@@ -485,6 +485,11 @@ impl App {
                     self.loop_mode = self.loop_mode.next();
                     return;
                 }
+                KeyCode::Char('s') => {
+                    self.queue_index = qobuz_lib::shuffle(&mut self.queue, self.queue_index);
+                    self.set_temp_status("Queue shuffled".to_string());
+                    return;
+                }
                 KeyCode::Char(',') => {
                     if !self.player.seek_backward(10) {
                         let err = self.player.last_seek_error().unwrap_or("unknown").to_string();
@@ -888,10 +893,10 @@ impl App {
         let tx = self.tx.clone();
         let api = self.api.clone();
         let cache = self.cache.clone();
+        let listener = TuiStreamListener { tx: tx.clone() };
 
-        // Stream: get URL, start download, send buffer for immediate playback
         tokio::spawn(async move {
-            match stream_track(&api, &track_id, format_id, &tx, &title, &artist, duration).await {
+            match qobuz_lib::stream_track(&api, &track_id, format_id, &title, &artist, duration, &listener).await {
                 Ok(data) => {
                     let meta = TrackMeta {
                         artist: &artist,
@@ -900,11 +905,10 @@ impl App {
                         title: &title,
                     };
                     cache.put(&track_id, &data, &meta);
-                    // Enable seek on the currently playing track
-                    tx.send(AppMessage::StreamCached(data, track_id)).ok();
+                    listener.on_stream_complete(data, track_id);
                 }
                 Err(e) => {
-                    tx.send(AppMessage::AudioError(e.to_string())).ok();
+                    listener.on_stream_error(e.to_string());
                 }
             }
         });
@@ -1182,102 +1186,23 @@ pub fn scroll_offset(selected: usize, current_offset: usize, visible_height: usi
     }
 }
 
-/// Download a track, retrying with fresh URLs and falling back to lower quality.
-/// Stream a track: get URL, start downloading, send a StreamingBuffer for
-/// immediate playback, and return the complete data for caching.
-async fn stream_track(
-    api: &QobuzClient,
-    track_id: &str,
-    preferred_format: u32,
-    tx: &mpsc::UnboundedSender<AppMessage>,
-    title: &str,
-    artist: &str,
-    duration: u64,
-) -> Result<Vec<u8>> {
-    let formats = format_fallback_chain(preferred_format);
-    let mut last_err = anyhow::anyhow!("No format available");
-    let mut tried_first = false;
+/// TUI implementation of [`StreamListener`] — sends events via the AppMessage channel.
+struct TuiStreamListener {
+    tx: mpsc::UnboundedSender<AppMessage>,
+}
 
-    for &fmt in formats {
-        let url = match api.get_track_url(track_id, fmt).await {
-            Ok(u) => u,
-            Err(_) => {
-                tried_first = true;
-                continue;
-            }
-        };
-
-        // Notify user of quality fallback
-        if tried_first && fmt != preferred_format {
-            let quality = AudioQuality::from_format_id(fmt)
-                .map(|q| q.label())
-                .unwrap_or("?");
-            tx.send(AppMessage::StatusMessage(
-                format!("Quality fallback: {}", quality),
-            )).ok();
-        }
-        tried_first = true;
-
-        let resp = match api.raw_client().get(&url).send().await {
-            Ok(r) if r.status().is_success() => r,
-            Ok(r) => {
-                last_err = anyhow::anyhow!("HTTP {}", r.status());
-                continue;
-            }
-            Err(e) => {
-                last_err = anyhow::anyhow!("{}", e);
-                continue;
-            }
-        };
-
-        let total_size = resp.content_length().unwrap_or(0);
-        let (writer, buffer) = stream::new_streaming_pair(total_size);
-        let mut sent_buffer = false;
-        let mut buffer_opt = Some(buffer);
-        let mut resp = resp;
-        let mut download_ok = true;
-        // Minimum data before starting playback: 10% of file, clamped to 64-256KB
-        const STREAM_MIN_BYTES: u64 = 64 * 1024;
-        const STREAM_MAX_BYTES: u64 = 256 * 1024;
-        let threshold = (total_size / 10).clamp(STREAM_MIN_BYTES, STREAM_MAX_BYTES) as usize;
-
-        loop {
-            match resp.chunk().await {
-                Ok(Some(chunk)) => {
-                    writer.write(&chunk);
-                    if !sent_buffer
-                        && writer.downloaded() >= threshold
-                        && let Some(buf) = buffer_opt.take()
-                    {
-                        tx.send(AppMessage::StreamReady(
-                            buf, title.to_string(), artist.to_string(), duration, fmt,
-                        )).ok();
-                        sent_buffer = true;
-                    }
-                }
-                Ok(None) => break,
-                Err(e) => {
-                    last_err = anyhow::anyhow!("Download: {}", e);
-                    download_ok = false;
-                    break;
-                }
-            }
-        }
-        writer.finish();
-
-        if !sent_buffer
-            && let Some(buf) = buffer_opt.take()
-        {
-            tx.send(AppMessage::StreamReady(
-                buf, title.to_string(), artist.to_string(), duration, fmt,
-            )).ok();
-        }
-
-        if download_ok {
-            return Ok(writer.get_data());
-        }
+impl StreamListener for TuiStreamListener {
+    fn on_stream_ready(&self, buffer: StreamingBuffer, title: String, artist: String, duration: u64, format_id: u32) {
+        self.tx.send(AppMessage::StreamReady(buffer, title, artist, duration, format_id)).ok();
     }
-
-    Err(last_err)
+    fn on_quality_fallback(&self, quality_label: &str) {
+        self.tx.send(AppMessage::StatusMessage(format!("Quality fallback: {}", quality_label))).ok();
+    }
+    fn on_stream_complete(&self, data: Vec<u8>, track_id: String) {
+        self.tx.send(AppMessage::StreamCached(data, track_id)).ok();
+    }
+    fn on_stream_error(&self, err: String) {
+        self.tx.send(AppMessage::AudioError(err)).ok();
+    }
 }
 
